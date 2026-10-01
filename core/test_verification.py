@@ -10,7 +10,7 @@ os.chdir(SCRIPT_DIR)
 from app import (
     load_pattern, load_presets, save_presets, load_config, save_config,
     RecoilEngine, bezier_ease, DFRecoilApp, DEFAULT_PRESETS,
-    PRESETS_FILE, CONFIG_FILE
+    PRESETS_FILE, CONFIG_FILE, precise_sleep_until, DEFAULT_PATTERN
 )
 
 def run_tests():
@@ -191,7 +191,76 @@ def run_tests():
     root.destroy()
     print("GUI Preset Switching & Controls verified.")
 
-    print("\n>>> ALL 10 TESTS PASSED SUCCESSFULLY! <<<")
+    print("\n=== TEST 11: Corrupted Presets Recovery ===")
+    backup_presets = json.loads(json.dumps(load_presets()))
+    try:
+        with open(PRESETS_FILE, "w", encoding="utf-8") as f:
+            f.write("INVALID JSON DATA {{{")
+        recovered = load_presets()
+        assert "AUG (Laser Build)" in recovered
+        assert os.path.exists(PRESETS_FILE + ".bak")
+        try:
+            os.remove(PRESETS_FILE + ".bak")
+        except Exception:
+            pass
+    finally:
+        save_presets(backup_presets)
+    print("Corrupted presets recovery verified.")
+
+    print("\n=== TEST 12: Empty Pattern Fallback Safety ===")
+    eng = RecoilEngine()
+    eng.pattern = []
+    if not eng.pattern:
+        eng.pattern = DEFAULT_PATTERN.copy()
+    assert len(eng.pattern) == 60
+    eng.shutdown()
+    print("Empty pattern fallback safety verified.")
+
+    print("\n=== TEST 13: Expanded Delay Range Tuning ===")
+    eng = RecoilEngine()
+    eng.update_params(3.0, 2.0, 1.5, 4, 30, 8, 0.2, "F6", False)
+    assert eng.bullet_delay_ms == 30
+    eng.update_params(4.5, 3.0, 2.0, 5, 350, 15, 0.4, "F6", False)
+    assert eng.bullet_delay_ms == 350
+    eng.shutdown()
+    print("Expanded delay range tuning verified.")
+
+    print("\n=== TEST 14: Interruptible Sleep Response ===")
+    import time
+    import threading
+    t_start = time.perf_counter()
+    running_flag = [True]
+    def stopper():
+        return running_flag[0]
+    def delay_stop():
+        time.sleep(0.015)
+        running_flag[0] = False
+    th = threading.Thread(target=delay_stop)
+    th.start()
+    precise_sleep_until(t_start + 0.5, stopper)
+    th.join()
+    elapsed = time.perf_counter() - t_start
+    assert elapsed < 0.25, f"Sleep was not interrupted promptly: {elapsed}s"
+    print("Interruptible sleep response verified.")
+
+    print("\n=== TEST 15: Preset UI Sync & Safe Deletion ===")
+    root = tk.Tk()
+    app = DFRecoilApp(root)
+    root.update_idletasks()
+
+    app.build_code_var.set("")
+    app._copy_build_code()
+    assert "No build code" in app.footer_lbl.cget("text")
+
+    app.preset_var.set("NonExistentPresetXYZ")
+    app._delete_preset_action()
+
+    app.engine.shutdown()
+    root.destroy()
+    print("Preset UI Sync & Safe Deletion verified.")
+
+    print("\n>>> ALL 15 TESTS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_tests()
+

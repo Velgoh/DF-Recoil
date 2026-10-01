@@ -110,7 +110,11 @@ def load_presets() -> Dict[str, Dict[str, Any]]:
                 if isinstance(data, dict) and data:
                     return data
         except Exception:
-            pass
+            try:
+                bak_path = PRESETS_FILE + ".bak"
+                os.replace(PRESETS_FILE, bak_path)
+            except Exception:
+                pass
     presets = json.loads(json.dumps(DEFAULT_PRESETS))
     save_presets(presets)
     return presets
@@ -118,8 +122,10 @@ def load_presets() -> Dict[str, Dict[str, Any]]:
 
 def save_presets(presets: Dict[str, Dict[str, Any]]) -> bool:
     try:
-        with open(PRESETS_FILE, "w", encoding="utf-8") as f:
+        tmp_file = PRESETS_FILE + ".tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(presets, f, indent=2)
+        os.replace(tmp_file, PRESETS_FILE)
         return True
     except Exception:
         return False
@@ -137,20 +143,25 @@ def load_config() -> Dict[str, Any]:
 
 def save_config(cfg: Dict[str, Any]) -> bool:
     try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        tmp_file = CONFIG_FILE + ".tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2)
+        os.replace(tmp_file, CONFIG_FILE)
         return True
     except Exception:
         return False
 
 
-def precise_sleep_until(target_perf_time: float) -> None:
+def precise_sleep_until(target_perf_time: float, should_run=None) -> None:
     while True:
+        if should_run and not should_run():
+            break
         remaining = target_perf_time - time.perf_counter()
         if remaining <= 0:
             break
         if remaining > 0.002:
             time.sleep(0.001)
+
 
 
 def bezier_ease(t: float) -> float:
@@ -227,6 +238,8 @@ class RecoilEngine:
             return False
         try:
             fg = user32.GetForegroundWindow()
+            if not fg:
+                return False
             if fg == self.gui_hwnd:
                 return True
             if user32.GetAncestor(fg, 2) == self.gui_hwnd or user32.GetAncestor(fg, 3) == self.gui_hwnd:
@@ -271,6 +284,9 @@ class RecoilEngine:
                     break
                 if self._is_gui_focused():
                     break
+
+                if not self.pattern:
+                    self.pattern = DEFAULT_PATTERN.copy()
 
                 if bullet_idx < len(self.pattern):
                     target_dx, target_dy = self.pattern[bullet_idx]
@@ -334,7 +350,7 @@ class RecoilEngine:
                         user32.mouse_event(MOUSEEVENTF_MOVE, move_x, move_y, 0, 0)
 
                     step_deadline = shot_start_time + s * step_duration
-                    precise_sleep_until(step_deadline)
+                    precise_sleep_until(step_deadline, lambda: self.running and self.enabled and self._is_lmb_down())
 
                 if stopped_early:
                     break
@@ -358,8 +374,8 @@ class DFRecoilApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Delta Force // Recoil Compensator")
-        self.root.geometry("540x890")
-        self.root.minsize(490, 780)
+        self.root.geometry("520x760")
+        self.root.minsize(460, 680)
         self.root.resizable(True, True)
 
         self.BG_COLOR = "#0D1117"
@@ -386,11 +402,13 @@ class DFRecoilApp:
 
         self.root.update_idletasks()
         try:
-            self.hwnd = user32.GetAncestor(self.root.winfo_id(), 2)
+            f = self.root.wm_frame()
+            self.hwnd = int(f, 16) if f else user32.GetAncestor(self.root.winfo_id(), 2)
             self.engine.set_gui_hwnd(self.hwnd)
         except Exception:
             self.hwnd = None
 
+        self._configure_styles()
         self._build_ui()
 
         active_preset = self.config.get("active_preset", "AUG (Laser Build)")
@@ -401,15 +419,42 @@ class DFRecoilApp:
 
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
+    def _configure_styles(self):
+        try:
+            style = ttk.Style()
+            style.theme_use("clam")
+            style.configure(
+                "TCombobox",
+                fieldbackground="#0D1117",
+                background="#21262D",
+                foreground="#F0F6FC",
+                darkcolor="#30363D",
+                lightcolor="#30363D",
+                bordercolor="#30363D",
+                arrowcolor="#38BDF8"
+            )
+            style.map(
+                "TCombobox",
+                fieldbackground=[("readonly", "#0D1117")],
+                foreground=[("readonly", "#F0F6FC")]
+            )
+            style.configure(
+                "TScale",
+                background=self.CARD_BG,
+                troughcolor="#0D1117",
+                sliderrelief="flat"
+            )
+        except Exception:
+            pass
+
     def _build_ui(self):
-        # Header
         header = tk.Frame(self.root, bg=self.BG_COLOR)
-        header.pack(fill="x", padx=24, pady=(14, 6))
+        header.pack(fill="x", padx=20, pady=(8, 2))
 
         title_lbl = tk.Label(
             header,
             text="DELTA FORCE // RECOIL",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 15, "bold"),
             fg=self.ACCENT_CYAN,
             bg=self.BG_COLOR
         )
@@ -424,7 +469,6 @@ class DFRecoilApp:
         )
         sub_lbl.pack(anchor="w", pady=(1, 0))
 
-        # Status Banner
         self.toggle_frame = tk.Frame(
             self.root,
             bg=self.INACTIVE_BG,
@@ -432,18 +476,18 @@ class DFRecoilApp:
             highlightthickness=2,
             cursor="hand2"
         )
-        self.toggle_frame.pack(fill="x", padx=24, pady=6)
+        self.toggle_frame.pack(fill="x", padx=20, pady=4)
         self.toggle_frame.bind("<Button-1>", lambda e: self.engine.toggle())
 
         self.status_title = tk.Label(
             self.toggle_frame,
             text="● STANDBY // DISABLED",
-            font=("Segoe UI", 14, "bold"),
+            font=("Segoe UI", 13, "bold"),
             fg="#FFFFFF",
             bg=self.INACTIVE_BG,
             cursor="hand2"
         )
-        self.status_title.pack(pady=(8, 2))
+        self.status_title.pack(pady=(5, 1))
         self.status_title.bind("<Button-1>", lambda e: self.engine.toggle())
 
         self.status_sub = tk.Label(
@@ -454,21 +498,19 @@ class DFRecoilApp:
             bg=self.INACTIVE_BG,
             cursor="hand2"
         )
-        self.status_sub.pack(pady=(0, 8))
+        self.status_sub.pack(pady=(0, 5))
         self.status_sub.bind("<Button-1>", lambda e: self.engine.toggle())
 
-        # Presets & Build Code Card
         preset_card = tk.Frame(
             self.root,
             bg=self.CARD_BG,
             highlightbackground=self.CARD_BORDER,
             highlightthickness=1
         )
-        preset_card.pack(fill="x", padx=24, pady=4)
+        preset_card.pack(fill="x", padx=20, pady=3)
 
-        # Row 1: Preset selector, New, Delete
         p_row1 = tk.Frame(preset_card, bg=self.CARD_BG)
-        p_row1.pack(fill="x", padx=12, pady=(8, 4))
+        p_row1.pack(fill="x", padx=10, pady=(6, 2))
 
         tk.Label(
             p_row1,
@@ -522,9 +564,8 @@ class DFRecoilApp:
         )
         btn_del.pack(side="left", padx=2)
 
-        # Row 2: Build Code entry & Copy button
         p_row2 = tk.Frame(preset_card, bg=self.CARD_BG)
-        p_row2.pack(fill="x", padx=12, pady=(4, 8))
+        p_row2.pack(fill="x", padx=10, pady=(2, 6))
 
         tk.Label(
             p_row2,
@@ -566,14 +607,13 @@ class DFRecoilApp:
         )
         self.btn_copy_code.pack(side="right")
 
-        # Sliders Section Card
         sliders_card = tk.Frame(
             self.root,
             bg=self.CARD_BG,
             highlightbackground=self.CARD_BORDER,
             highlightthickness=1
         )
-        sliders_card.pack(fill="x", padx=24, pady=4)
+        sliders_card.pack(fill="x", padx=20, pady=3)
 
         self.var_v_scale = tk.DoubleVar(value=4.20)
         self.lbl_v_val = self._create_slider_row(
@@ -602,7 +642,7 @@ class DFRecoilApp:
         self.var_delay = tk.IntVar(value=133)
         self.lbl_delay_val = self._create_slider_row(
             sliders_card, "Bullet Fire Delay (ms)", "Timing interval between shots",
-            self.var_delay, 40, 200, 1, "{} ms"
+            self.var_delay, 30, 400, 1, "{} ms"
         )
 
         self.var_steps = tk.IntVar(value=10)
@@ -617,17 +657,16 @@ class DFRecoilApp:
             self.var_jitter, 0.0, 1.5, 0.01, "±{:.2f} px"
         )
 
-        # Options Card
         opts_card = tk.Frame(
             self.root,
             bg=self.CARD_BG,
             highlightbackground=self.CARD_BORDER,
             highlightthickness=1
         )
-        opts_card.pack(fill="x", padx=24, pady=4)
+        opts_card.pack(fill="x", padx=20, pady=3)
 
         opts_inner = tk.Frame(opts_card, bg=self.CARD_BG)
-        opts_inner.pack(fill="x", padx=12, pady=6)
+        opts_inner.pack(fill="x", padx=10, pady=4)
 
         tk.Label(
             opts_inner,
@@ -663,9 +702,8 @@ class DFRecoilApp:
         )
         self.ads_chk.pack(side="right")
 
-        # Action Buttons
         btn_frame = tk.Frame(self.root, bg=self.BG_COLOR)
-        btn_frame.pack(fill="x", padx=24, pady=8)
+        btn_frame.pack(fill="x", padx=20, pady=6)
 
         def make_action_btn(parent, text, cmd, fg_color):
             btn = tk.Button(
@@ -678,19 +716,18 @@ class DFRecoilApp:
                 activeforeground=fg_color,
                 relief="flat",
                 bd=0,
-                padx=12,
-                pady=6,
+                padx=10,
+                pady=5,
                 cursor="hand2",
                 command=cmd
             )
-            btn.pack(side="left", expand=True, fill="x", padx=4)
+            btn.pack(side="left", expand=True, fill="x", padx=3)
             return btn
 
         make_action_btn(btn_frame, "Save Preset", self._save_preset_action, self.ACTIVE_GREEN)
         make_action_btn(btn_frame, "Reset Defaults", self._reset_defaults_action, self.ACCENT_GOLD)
         make_action_btn(btn_frame, "Reload All", self._reload_all_action, self.ACCENT_CYAN)
 
-        # Status Footer
         self.footer_lbl = tk.Label(
             self.root,
             text="Ready",
@@ -698,7 +735,7 @@ class DFRecoilApp:
             fg=self.TEXT_MUTED,
             bg=self.BG_COLOR
         )
-        self.footer_lbl.pack(side="bottom", pady=(0, 6))
+        self.footer_lbl.pack(side="bottom", pady=(0, 4))
 
     def _create_slider_row(self, parent, title, subtext, variable, from_, to, resolution, val_format):
         container = tk.Frame(parent, bg=self.CARD_BG)
@@ -844,9 +881,12 @@ class DFRecoilApp:
         if code:
             self.root.clipboard_clear()
             self.root.clipboard_append(code)
+            self.root.update()
             self.btn_copy_code.config(text="Copied!")
             self.root.after(1200, lambda: self.btn_copy_code.config(text="Copy"))
             self.footer_lbl.config(text="Build code copied to clipboard")
+        else:
+            self.footer_lbl.config(text="No build code to copy")
 
     def _new_preset_action(self):
         name = simpledialog.askstring("New Preset", "Enter preset name:", parent=self.root)
@@ -863,18 +903,21 @@ class DFRecoilApp:
         self.presets[name] = self._get_ui_preset_data()
         save_presets(self.presets)
         self._refresh_preset_list(select_name=name)
+        self._load_preset_to_ui(name)
         save_config({"active_preset": name})
         self.footer_lbl.config(text=f"Created preset '{name}'")
 
     def _delete_preset_action(self):
         name = self.preset_var.get()
+        if name not in self.presets:
+            return
         if len(self.presets) <= 1:
             messagebox.showwarning("Warning", "Cannot delete the only remaining preset.", parent=self.root)
             return
         if messagebox.askyesno("Delete Preset", f"Delete preset '{name}'?", parent=self.root):
-            del self.presets[name]
+            self.presets.pop(name, None)
             save_presets(self.presets)
-            next_name = next(iter(self.presets))
+            next_name = next(iter(self.presets)) if self.presets else "AUG (Laser Build)"
             self._refresh_preset_list(select_name=next_name)
             self._load_preset_to_ui(next_name)
             save_config({"active_preset": next_name})
