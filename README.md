@@ -1,4 +1,4 @@
-# DF-Recoil // Universal Recoil Compensator for Delta Force
+# DF-Recoil - Recoil Manager for Delta Force
 
 DF-Recoil is a lightweight, standalone recoil compensator and weapon preset manager for Delta Force. It provides smooth, humanized curve compensation, customizable weapon profiles, and built-in weapon build code sharing.
 
@@ -38,6 +38,3 @@ DF-Recoil/
 │   └── test_comprehensive.py # Vision & engine validation suite
 ```
 
----
-
-*Glory to mankind.*

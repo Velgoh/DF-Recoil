@@ -1,11 +1,6 @@
 @echo off
-title Delta Force // Recoil Compensator
+title Delta Force Recoil Manager
 cd /d "%~dp0"
-
-echo ========================================================
-echo   DELTA FORCE - RECOIL COMPENSATOR LAUNCHER
-echo ========================================================
-echo.
 
 set PYTHON_CMD=
 where python >nul 2>nul
@@ -33,7 +28,6 @@ if %ERRORLEVEL% EQU 0 (
     set PYTHON_RUNNER=pythonw
 )
 
-echo [INFO] Launching Recoil Compensator GUI...
 cd /d "%~dp0core"
 start "" "%PYTHON_RUNNER%" app.py
 

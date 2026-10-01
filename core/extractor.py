@@ -72,13 +72,18 @@ def extract_dual_dots_from_image(
             "match_percent": 0
         }
 
-    # Focus on the mannequin panel region
-    roi_top = int(h * 0.15)
-    roi_bottom = int(h * 0.86)
-    roi_left = int(w * 0.56)
-    roi_right = int(w * 0.94)
-
-    crop_both = img[roi_top:roi_bottom, roi_left:roi_right].copy()
+    if w / h < 1.0 or w < 500:
+        roi_top = 0
+        roi_bottom = int(h * 0.88)
+        roi_left = 0
+        roi_right = w
+        crop_both = img[roi_top:roi_bottom, roi_left:roi_right].copy()
+    else:
+        roi_top = int(h * 0.15)
+        roi_bottom = int(h * 0.86)
+        roi_left = int(w * 0.56)
+        roi_right = int(w * 0.94)
+        crop_both = img[roi_top:roi_bottom, roi_left:roi_right].copy()
     ch, cw = crop_both.shape[:2]
 
     split_x = int(cw * 0.48)

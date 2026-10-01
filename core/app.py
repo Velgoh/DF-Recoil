@@ -64,6 +64,7 @@ PATTERN_FILE = os.path.join(SCRIPT_DIR, "pattern.json")
 DEFAULT_PRESETS: Dict[str, Dict[str, Any]] = {
     "AUG": {
         "build_code": "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3",
+        "rpm": 679,
         "master_scale": 1.20,
         "vertical_scale": 2.70,
         "horizontal_scale": 2.92,
@@ -72,6 +73,22 @@ DEFAULT_PRESETS: Dict[str, Dict[str, Any]] = {
         "initial_kick_mult": 1.00,
         "kick_decay_shots": 2,
         "bullet_delay_ms": 88,
+        "micro_steps": 10,
+        "jitter": 0.35,
+        "hotkey": "F6",
+        "require_ads": True
+    },
+    "aks74": {
+        "build_code": "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3",
+        "rpm": 533,
+        "master_scale": 0.41,
+        "vertical_scale": 3.77,
+        "horizontal_scale": 1.79,
+        "v_decay_pct": 0.7,
+        "h_decay_pct": 10.0,
+        "initial_kick_mult": 1.20,
+        "kick_decay_shots": 3,
+        "bullet_delay_ms": 113,
         "micro_steps": 10,
         "jitter": 0.35,
         "hotkey": "F6",
@@ -104,6 +121,8 @@ def load_presets() -> Dict[str, Dict[str, Any]]:
                         p.setdefault("v_decay_pct", 0.0)
                         p.setdefault("h_decay_pct", 0.0)
                         p.setdefault("require_ads", True)
+                        if "rpm" not in p and "bullet_delay_ms" in p:
+                            p["rpm"] = round(60000.0 / p["bullet_delay_ms"]) if p["bullet_delay_ms"] > 0 else 679
                     return data
         except Exception:
             try:
@@ -310,8 +329,6 @@ class RecoilEngine:
 
                 kick_boost = self.get_kick_boost(bullet_idx)
 
-                # Linear decay factors per bullet: positive % weakens pull each shot, negative % strengthens
-                # Allows compensation to decay down to 0.0% strength
                 v_decay_factor = max(0.0, min(3.0, 1.0 - bullet_idx * (self.v_decay_pct / 100.0)))
                 h_decay_factor = max(0.0, min(3.0, 1.0 - bullet_idx * (self.h_decay_pct / 100.0)))
 
@@ -394,7 +411,7 @@ class RecoilEngine:
 class MachineVisionPopup(tk.Toplevel):
     def __init__(self, parent, calib_res, rpm_val, apply_cb):
         super().__init__(parent)
-        self.title("What the Machine Sees // Pattern Cross-Validation")
+        self.title("Pattern Cross-Validation")
         self.geometry("620x680")
         self.minsize(580, 600)
         self.configure(bg="#0D1117")
@@ -415,7 +432,7 @@ class MachineVisionPopup(tk.Toplevel):
 
         self.banner = tk.Label(
             hdr_frame,
-            text=f"✔ Synchronized: {len(self.grey_dots)} Base Control (Grey) / {len(self.green_dots)} Loadout (Green) Dots ({match_pct}% Match)",
+            text=f"Synchronized: {len(self.grey_dots)} Base / {len(self.green_dots)} Loadout Dots ({match_pct}% Match)",
             fg="#10B981", bg="#0D1117", font=("Segoe UI", 10, "bold")
         )
         self.banner.pack(anchor="w")
@@ -529,7 +546,7 @@ class MachineVisionPopup(tk.Toplevel):
             match_pct = 100
 
         self.banner.config(
-            text=f"✔ Synchronized: {n_grey} Base Control (Grey) / {n_green} Loadout (Green) Dots ({match_pct}% Match)"
+            text=f"Synchronized: {n_grey} Base / {n_green} Loadout Dots ({match_pct}% Match)"
         )
 
         for dx, dy in self.grey_dots:
@@ -543,7 +560,6 @@ class MachineVisionPopup(tk.Toplevel):
                 outline="#10B981", width=2, tags="overlay"
             )
 
-        # Connect grey dots on base control mannequin
         if len(self.grey_dots) > 1:
             sorted_grey_pts = sorted(self.grey_dots, key=lambda d: -d[1])
             pts_grey = []
@@ -551,7 +567,6 @@ class MachineVisionPopup(tk.Toplevel):
                 pts_grey.extend([ox + dx, oy + dy])
             self.canvas.create_line(pts_grey, fill="#94A3B8", tags="overlay", width=1)
 
-        # Connect green dots
         if len(self.green_dots) > 1:
             sorted_green = sorted(self.green_dots, key=lambda d: -d[1])
             pts = []
@@ -559,7 +574,6 @@ class MachineVisionPopup(tk.Toplevel):
                 pts.extend([ox + dx, oy + dy])
             self.canvas.create_line(pts, fill="#10B981", tags="overlay", width=2)
 
-        # Connect scaled grey pattern overlay on the green side for visual cross-validation
         if len(self.grey_dots) >= 2 and len(self.green_dots) >= 1:
             try:
                 from extractor import calculate_compression_ratios
@@ -578,13 +592,13 @@ class MachineVisionPopup(tk.Toplevel):
                     self.canvas.create_line(calc_pts, fill="#38BDF8", dash=(3, 2), tags="overlay", width=2)
 
                 self.ratio_status.config(
-                    text=f"Compression Ratios: Vert ×{v_mult:.2f} | Horiz ×{h_mult:.2f} | Grey Dots: {n_grey}, Green: {n_green}"
+                    text=f"Ratios: Vert ×{v_mult:.2f} | Horiz ×{h_mult:.2f} | Base: {n_grey}, Loadout: {n_green}"
                 )
             except Exception:
                 pass
         else:
             self.ratio_status.config(
-                text=f"Compression Ratios: Vert ×1.00 | Horiz ×1.00 | Grey Dots: {n_grey}, Green: {n_green} (Insufficient dots)"
+                text=f"Ratios: Vert ×1.00 | Horiz ×1.00 | Base: {n_grey}, Loadout: {n_green}"
             )
 
     def confirm(self):
@@ -632,7 +646,7 @@ class MachineVisionPopup(tk.Toplevel):
 class DFRecoilApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Delta Force // Recoil Compensator")
+        self.root.title("Delta Force Recoil Manager")
         self.root.geometry("1000x800")
         self.root.minsize(920, 720)
         self.root.resizable(True, True)
@@ -711,19 +725,13 @@ class DFRecoilApp:
             pass
 
     def _build_ui(self):
-        # Full width header
         header = tk.Frame(self.root, bg=self.BG_COLOR)
-        header.pack(fill="x", padx=16, pady=(8, 2))
+        header.pack(fill="x", padx=16, pady=(10, 4))
         tk.Label(
-            header, text="DELTA FORCE // RECOIL COMPENSATOR", font=("Segoe UI", 15, "bold"),
+            header, text="Delta Force Recoil Manager", font=("Segoe UI", 15, "bold"),
             fg=self.ACCENT_CYAN, bg=self.BG_COLOR
         ).pack(anchor="w")
-        tk.Label(
-            header, text="Universal Recoil Profile & Pattern Manager — Adaptive Compensation Engine",
-            font=("Segoe UI", 9), fg=self.TEXT_MUTED, bg=self.BG_COLOR
-        ).pack(anchor="w", pady=(1, 0))
 
-        # Status & Toggle Banner
         self.toggle_frame = tk.Frame(
             self.root, bg=self.INACTIVE_BG,
             highlightbackground=self.INACTIVE_RED, highlightthickness=2, cursor="hand2"
@@ -732,20 +740,19 @@ class DFRecoilApp:
         self.toggle_frame.bind("<Button-1>", lambda e: self.engine.toggle())
 
         self.status_title = tk.Label(
-            self.toggle_frame, text="● STANDBY // DISABLED",
+            self.toggle_frame, text="Standby (Disabled)",
             font=("Segoe UI", 12, "bold"), fg="#FFFFFF", bg=self.INACTIVE_BG, cursor="hand2"
         )
         self.status_title.pack(pady=(4, 1))
         self.status_title.bind("<Button-1>", lambda e: self.engine.toggle())
 
         self.status_sub = tk.Label(
-            self.toggle_frame, text="Press [F6] or click banner to ENABLE",
+            self.toggle_frame, text="Press [F6] or click banner to enable",
             font=("Segoe UI", 9, "bold"), fg="#FECACA", bg=self.INACTIVE_BG, cursor="hand2"
         )
         self.status_sub.pack(pady=(0, 4))
         self.status_sub.bind("<Button-1>", lambda e: self.engine.toggle())
 
-        # Main Body - Two Columns
         body = tk.Frame(self.root, bg=self.BG_COLOR)
         body.pack(fill="both", expand=True, padx=16, pady=(2, 4))
 
@@ -755,78 +762,74 @@ class DFRecoilApp:
         col_right = tk.Frame(body, bg=self.BG_COLOR)
         col_right.pack(side="right", fill="both", expand=True, padx=(6, 0))
 
-        # =====================================================================
-        # LEFT COLUMN: RECOIL TUNING
-        # =====================================================================
-
-        # Master Scale Card
+        # Master scale
         master_card = tk.Frame(col_left, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         master_card.pack(fill="x", pady=(0, 4))
         self.var_master_scale = tk.DoubleVar(value=1.00)
         self.lbl_master_val = self._create_slider_row(
-            master_card, "Master Recoil Scale", "Global multiplier scaling overall compensation strength",
+            master_card, "Master Scale",
             self.var_master_scale, 0.10, 3.00, 0.01, "{:.2f}x"
         )
 
-        # Recoil Tuning Card
+        # Recoil tuning
         sliders_card = tk.Frame(col_left, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         sliders_card.pack(fill="both", expand=True, pady=(0, 4))
 
-        self.var_v_scale = tk.DoubleVar(value=4.20)
+        self.var_v_scale = tk.DoubleVar(value=2.70)
         self.lbl_v_val = self._create_slider_row(
-            sliders_card, "Vertical Recoil Scale", "Base pull-down compensation multiplier",
+            sliders_card, "Vertical Scale",
             self.var_v_scale, 0.10, 6.00, 0.01, "{:.2f}x"
         )
 
-        self.var_h_scale = tk.DoubleVar(value=3.85)
+        self.var_h_scale = tk.DoubleVar(value=2.92)
         self.lbl_h_val = self._create_slider_row(
-            sliders_card, "Horizontal Recoil Scale", "Base horizontal drift compensation multiplier",
+            sliders_card, "Horizontal Scale",
             self.var_h_scale, 0.10, 6.00, 0.01, "{:.2f}x"
         )
 
-        self.var_v_decay = tk.DoubleVar(value=0.0)
+        self.var_v_decay = tk.DoubleVar(value=1.0)
         self.lbl_v_decay_val = self._create_slider_row(
-            sliders_card, "Vertical Recoil Decay", "Strength loss per shot (+ weakens pull, - strengthens; down to 0%)",
+            sliders_card, "Vertical Decay (%/shot)",
             self.var_v_decay, -5.0, 10.0, 0.1, "{:+.1f}%"
         )
 
-        self.var_h_decay = tk.DoubleVar(value=0.0)
+        self.var_h_decay = tk.DoubleVar(value=-1.0)
         self.lbl_h_decay_val = self._create_slider_row(
-            sliders_card, "Horizontal Recoil Decay", "Horizontal loss per shot (+ weakens drift, - strengthens)",
+            sliders_card, "Horizontal Decay (%/shot)",
             self.var_h_decay, -5.0, 10.0, 0.1, "{:+.1f}%"
         )
 
-        self.var_kick_mult = tk.DoubleVar(value=2.20)
+        self.var_kick_mult = tk.DoubleVar(value=1.00)
         self.lbl_kick_mult_val = self._create_slider_row(
-            sliders_card, "Initial Kick Multiplier", "First-shot kick boost multiplier",
+            sliders_card, "Initial Kick",
             self.var_kick_mult, 1.00, 4.00, 0.05, "{:.2f}x"
         )
 
-        self.var_kick_decay = tk.IntVar(value=6)
+        self.var_kick_decay = tk.IntVar(value=2)
         self.lbl_kick_decay_val = self._create_slider_row(
-            sliders_card, "Kick Decay Shots", "Number of shots to settle from initial kick",
+            sliders_card, "Kick Duration",
             self.var_kick_decay, 1, 15, 1, "{} shots"
         )
 
-        self.var_delay = tk.IntVar(value=133)
+        self.var_delay = tk.IntVar(value=88)
         self.lbl_delay_val = self._create_slider_row(
-            sliders_card, "Bullet Fire Delay (ms)", "Timing interval between shots (derived from gun RPM)",
+            sliders_card, "Fire Delay (ms)",
             self.var_delay, 20, 400, 1, "{} ms"
         )
 
         self.var_steps = tk.IntVar(value=10)
         self.lbl_steps_val = self._create_slider_row(
-            sliders_card, "Smoothing Micro-Steps", "Subdivision steps per bullet interval for smooth mouse movement",
+            sliders_card, "Smoothing Steps",
             self.var_steps, 3, 30, 1, "{} steps"
         )
 
         self.var_jitter = tk.DoubleVar(value=0.35)
         self.lbl_jitter_val = self._create_slider_row(
-            sliders_card, "Randomness / Jitter", "Micro-variance to humanize cursor movement",
+            sliders_card, "Jitter",
             self.var_jitter, 0.00, 1.50, 0.01, "±{:.2f} px"
         )
 
-        # Controls & Activation Card
+        # Controls & activation
         opts_card = tk.Frame(col_left, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         opts_card.pack(fill="x", pady=(0, 4))
         opts_inner = tk.Frame(opts_card, bg=self.CARD_BG)
@@ -855,7 +858,7 @@ class DFRecoilApp:
         )
         self.ads_chk.pack(side="left")
 
-        # Action Buttons
+        # Action buttons
         btn_frame = tk.Frame(col_left, bg=self.BG_COLOR)
         btn_frame.pack(fill="x", pady=(0, 4))
         for txt, cmd, fg in [
@@ -869,11 +872,7 @@ class DFRecoilApp:
                 relief="flat", bd=0, padx=8, pady=5, cursor="hand2", command=cmd
             ).pack(side="left", expand=True, fill="x", padx=2)
 
-        # =====================================================================
-        # RIGHT COLUMN: PRESETS, CALIBRATION, TELEMETRY
-        # =====================================================================
-
-        # Preset Manager Card
+        # Preset manager
         preset_card = tk.Frame(col_right, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         preset_card.pack(fill="x", pady=(0, 4))
 
@@ -938,7 +937,7 @@ class DFRecoilApp:
         )
         self.btn_copy_code.pack(side="right")
 
-        # Auto-Calibrate Card
+        # Auto-calibrate
         calib_card = tk.Frame(col_right, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         calib_card.pack(fill="x", pady=(0, 4))
 
@@ -949,7 +948,7 @@ class DFRecoilApp:
 
         tk.Label(
             calib_card,
-            text="Detects grey (base) & green (loadout) dots, computes compression ratios, and builds calibrated profile.",
+            text="Extracts base and loadout patterns from screenshots to compute compensation ratios.",
             font=("Segoe UI", 8), fg=self.TEXT_MUTED, bg=self.CARD_BG, wraplength=440, justify="left"
         ).pack(anchor="w", padx=12, pady=(0, 4))
 
@@ -998,7 +997,7 @@ class DFRecoilApp:
         )
         self.calib_badge.pack(side="left")
 
-        # Pattern & Telemetry Card
+        # Telemetry
         telemetry_card = tk.Frame(col_right, bg=self.CARD_BG, highlightbackground=self.CARD_BORDER, highlightthickness=1)
         telemetry_card.pack(fill="both", expand=True, pady=(0, 4))
 
@@ -1032,24 +1031,23 @@ class DFRecoilApp:
         self.lbl_telemetry_steady.pack(anchor="w", padx=12, pady=1)
 
         self.btn_open_vision = tk.Button(
-            telemetry_card, text="Open Vision Cross-Validation Popup", font=("Segoe UI", 8, "bold"),
+            telemetry_card, text="Open Cross-Validation", font=("Segoe UI", 8, "bold"),
             fg=self.ACCENT_CYAN, bg=self.BTN_NORMAL, activebackground=self.BTN_HOVER, activeforeground=self.ACCENT_CYAN,
             relief="flat", bd=0, padx=10, pady=4, cursor="hand2", command=self._open_vision_popup
         )
         self.btn_open_vision.pack(anchor="w", padx=12, pady=(8, 8))
 
-        # Bottom Status Bar
         self.footer_lbl = tk.Label(
-            self.root, text="Ready // Recoil Compensator Standby",
+            self.root, text="Ready",
             font=("Segoe UI", 8), fg=self.TEXT_MUTED, bg=self.BG_COLOR
         )
         self.footer_lbl.pack(side="bottom", pady=(0, 4))
 
         self.root.bind("<Control-v>", lambda e: self._paste_screenshot())
 
-    def _create_slider_row(self, parent, title, subtext, variable, from_, to, resolution, val_format):
+    def _create_slider_row(self, parent, title, variable, from_, to, resolution, val_format, subtext=""):
         container = tk.Frame(parent, bg=self.CARD_BG)
-        container.pack(fill="x", padx=12, pady=1)
+        container.pack(fill="x", padx=12, pady=3)
 
         hdr = tk.Frame(container, bg=self.CARD_BG)
         hdr.pack(fill="x")
@@ -1089,7 +1087,7 @@ class DFRecoilApp:
             container, from_=from_, to=to, variable=variable,
             command=on_slider_move
         )
-        scale.pack(fill="x", pady=(0, 1))
+        scale.pack(fill="x", pady=(2, 2))
         return val_lbl
 
     def _refresh_preset_list(self, select_name=None):
@@ -1107,14 +1105,22 @@ class DFRecoilApp:
         self.preset_var.set(name)
         self.build_code_var.set(preset.get("build_code", ""))
 
+        rpm_val = preset.get("rpm")
+        if rpm_val is not None:
+            self.rpm_var.set(str(int(rpm_val)))
+        else:
+            delay = preset.get("bullet_delay_ms", 88)
+            calc_rpm = round(60000.0 / delay) if delay > 0 else 679
+            self.rpm_var.set(str(int(calc_rpm)))
+
         self.var_master_scale.set(float(preset.get("master_scale", 1.00)))
-        self.var_v_scale.set(float(preset.get("vertical_scale", 4.20)))
-        self.var_h_scale.set(float(preset.get("horizontal_scale", 3.85)))
+        self.var_v_scale.set(float(preset.get("vertical_scale", 2.70)))
+        self.var_h_scale.set(float(preset.get("horizontal_scale", 2.92)))
         self.var_v_decay.set(float(preset.get("v_decay_pct", 0.0)))
         self.var_h_decay.set(float(preset.get("h_decay_pct", 0.0)))
-        self.var_kick_mult.set(float(preset.get("initial_kick_mult", 2.20)))
-        self.var_kick_decay.set(int(preset.get("kick_decay_shots", 6)))
-        self.var_delay.set(int(preset.get("bullet_delay_ms", 133)))
+        self.var_kick_mult.set(float(preset.get("initial_kick_mult", 1.00)))
+        self.var_kick_decay.set(int(preset.get("kick_decay_shots", 2)))
+        self.var_delay.set(int(preset.get("bullet_delay_ms", 88)))
         self.var_steps.set(int(preset.get("micro_steps", 10)))
         self.var_jitter.set(float(preset.get("jitter", 0.35)))
         self.hotkey_var.set(str(preset.get("hotkey", "F6")))
@@ -1136,8 +1142,15 @@ class DFRecoilApp:
         self._update_telemetry_display()
 
     def _get_ui_preset_data(self) -> Dict[str, Any]:
+        try:
+            rpm_val = int(float(self.rpm_var.get()))
+        except ValueError:
+            delay = int(self.var_delay.get())
+            rpm_val = round(60000.0 / delay) if delay > 0 else 679
+
         return {
             "build_code": self.build_code_var.get().strip(),
+            "rpm": rpm_val,
             "master_scale": round(float(self.var_master_scale.get()), 2),
             "vertical_scale": round(float(self.var_v_scale.get()), 2),
             "horizontal_scale": round(float(self.var_h_scale.get()), 2),
@@ -1176,10 +1189,10 @@ class DFRecoilApp:
     def _update_hotkey_display(self):
         hk = self.hotkey_var.get()
         if not self.engine.enabled:
-            self.status_sub.config(text=f"Press [{hk}] or click to ENABLE")
+            self.status_sub.config(text=f"Press [{hk}] or click banner to enable")
         else:
             ads_text = "Aim (Hold RMB) + Fire (LMB)" if self.ads_var.get() else "Hold LMB to Fire"
-            self.status_sub.config(text=f"Press [{hk}] to DISABLE | {ads_text}")
+            self.status_sub.config(text=f"Press [{hk}] to disable | {ads_text}")
 
     def _update_telemetry_display(self, calib_res=None):
         if calib_res:
@@ -1252,7 +1265,7 @@ class DFRecoilApp:
         if messagebox.askyesno("Delete Preset", f"Delete preset '{name}'?", parent=self.root):
             self.presets.pop(name, None)
             save_presets(self.presets)
-            next_name = next(iter(self.presets)) if self.presets else "AUG (Laser Build)"
+            next_name = next(iter(self.presets)) if self.presets else "AUG"
             self._refresh_preset_list(select_name=next_name)
             self._load_preset_to_ui(next_name)
             save_config({"active_preset": next_name})
@@ -1274,7 +1287,8 @@ class DFRecoilApp:
         if name in DEFAULT_PRESETS:
             self.presets[name] = json.loads(json.dumps(DEFAULT_PRESETS[name]))
         else:
-            self.presets[name] = json.loads(json.dumps(DEFAULT_PRESETS["AUG (Laser Build)"]))
+            fallback = next(iter(DEFAULT_PRESETS))
+            self.presets[name] = json.loads(json.dumps(DEFAULT_PRESETS[fallback]))
         self._load_preset_to_ui(name)
         save_presets(self.presets)
         self.footer_lbl.config(text=f"Reset '{name}' to defaults.")
@@ -1283,9 +1297,9 @@ class DFRecoilApp:
         self.presets = load_presets()
         self.config = load_config()
         self.engine.pattern = load_pattern()
-        name = self.config.get("active_preset", "AUG (Laser Build)")
+        name = self.config.get("active_preset", "AUG")
         if name not in self.presets:
-            name = next(iter(self.presets)) if self.presets else "AUG (Laser Build)"
+            name = next(iter(self.presets)) if self.presets else "AUG"
         self._refresh_preset_list(select_name=name)
         self._load_preset_to_ui(name)
         self._update_telemetry_display()
@@ -1299,15 +1313,15 @@ class DFRecoilApp:
             hk = self.hotkey_var.get()
             if is_enabled:
                 self.toggle_frame.config(bg=self.ACTIVE_BG, highlightbackground=self.ACTIVE_GREEN)
-                self.status_title.config(text="● ACTIVE // RUNNING", bg=self.ACTIVE_BG, fg="#FFFFFF")
+                self.status_title.config(text="Active (Enabled)", bg=self.ACTIVE_BG, fg="#FFFFFF")
                 ads_text = "Aim (Hold RMB) + Fire (LMB)" if self.ads_var.get() else "Hold LMB to Fire"
-                self.status_sub.config(text=f"Press [{hk}] to DISABLE | {ads_text}", bg=self.ACTIVE_BG, fg="#A7F3D0")
-                self.footer_lbl.config(text="Recoil Compensation ACTIVE")
+                self.status_sub.config(text=f"Press [{hk}] to disable | {ads_text}", bg=self.ACTIVE_BG, fg="#A7F3D0")
+                self.footer_lbl.config(text="Recoil compensation active")
             else:
                 self.toggle_frame.config(bg=self.INACTIVE_BG, highlightbackground=self.INACTIVE_RED)
-                self.status_title.config(text="● STANDBY // DISABLED", bg=self.INACTIVE_BG, fg="#FFFFFF")
-                self.status_sub.config(text=f"Press [{hk}] or click banner to ENABLE", bg=self.INACTIVE_BG, fg="#FECACA")
-                self.footer_lbl.config(text="Recoil Compensation STANDBY")
+                self.status_title.config(text="Standby (Disabled)", bg=self.INACTIVE_BG, fg="#FFFFFF")
+                self.status_sub.config(text=f"Press [{hk}] or click banner to enable", bg=self.INACTIVE_BG, fg="#FECACA")
+                self.footer_lbl.config(text="Ready")
         except Exception:
             pass
 
@@ -1372,6 +1386,7 @@ class DFRecoilApp:
         kick_params = calculate_kick_parameters(ref_dots)
 
         self.var_delay.set(delay_ms)
+        self.rpm_var.set(str(int(rpm_val)))
         self.var_v_scale.set(kick_params["vertical_scale"])
         self.var_h_scale.set(kick_params["horizontal_scale"])
         self.var_kick_mult.set(kick_params["initial_kick_mult"])

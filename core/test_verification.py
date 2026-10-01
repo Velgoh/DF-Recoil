@@ -144,8 +144,20 @@ def run_tests():
     assert "vertical_scale" in app.presets[cur_preset]
     assert app.ads_var.get() is True
 
-    # Switch to M4A1 preset
-    if "M4A1 (Standard)" in app.presets:
+    # Switch to aks74 preset
+    if "aks74" in app.presets:
+        app.preset_combo.set("aks74")
+        app._on_preset_selected()
+        assert app.preset_var.get() == "aks74"
+        assert app.rpm_var.get() == "533"
+        assert abs(app.var_v_scale.get() - 3.77) < 1e-3
+
+        # Switch back to original
+        app.preset_combo.set(cur_preset)
+        app._on_preset_selected()
+        assert app.preset_var.get() == cur_preset
+        assert app.rpm_var.get() == "679"
+    elif "M4A1 (Standard)" in app.presets:
         app.preset_combo.set("M4A1 (Standard)")
         app._on_preset_selected()
         assert app.preset_var.get() == "M4A1 (Standard)"
@@ -164,7 +176,8 @@ def run_tests():
     # Test Reset Defaults
     app.var_v_scale.set(1.11)
     app._reset_defaults_action()
-    assert abs(app.var_v_scale.get() - 4.20) < 1e-3
+    expected_v = DEFAULT_PRESETS[cur_preset]["vertical_scale"]
+    assert abs(app.var_v_scale.get() - expected_v) < 1e-3
 
     # Test Reload All
     app._reload_all_action()
@@ -180,7 +193,7 @@ def run_tests():
         with open(PRESETS_FILE, "w", encoding="utf-8") as f:
             f.write("INVALID JSON DATA {{{")
         recovered = load_presets()
-        assert "AUG (Laser Build)" in recovered
+        assert "AUG" in recovered
         assert os.path.exists(PRESETS_FILE + ".bak")
         try:
             os.remove(PRESETS_FILE + ".bak")
