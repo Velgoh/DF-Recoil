@@ -7,9 +7,6 @@ from typing import List, Tuple, Dict, Any, Union, Optional
 
 
 def load_image_to_bgr(image_input: Union[str, os.PathLike, Image.Image, np.ndarray]) -> np.ndarray:
-    """
-    Loads any image format (file path, PIL Image, or numpy array) into a BGR numpy array.
-    """
     if isinstance(image_input, (str, os.PathLike)):
         path_str = str(image_input)
         if not os.path.exists(path_str):
@@ -35,10 +32,6 @@ def load_image_to_bgr(image_input: Union[str, os.PathLike, Image.Image, np.ndarr
 
 
 def calculate_fire_delay(rpm: Union[int, float]) -> int:
-    """
-    Calculates the millisecond delay between bullet shots based on gun RPM.
-    60,000 ms / RPM, clamped to [20, 1000].
-    """
     try:
         val = float(rpm)
         if val <= 0:
@@ -52,13 +45,6 @@ def calculate_fire_delay(rpm: Union[int, float]) -> int:
 def extract_dual_dots_from_image(
     image_input: Union[str, os.PathLike, Image.Image, np.ndarray]
 ) -> Dict[str, Any]:
-    """
-    Crops the mannequin recoil display and detects:
-    1. Base Control trajectory dots (grey dots on the left silhouette)
-    2. Modified Loadout trajectory dots (green dots on the right silhouette)
-    Uses multi-scale morphological top-hat, adaptive contrast/thresholding,
-    and background isolation to reliably detect faint and close dots.
-    """
     img = load_image_to_bgr(image_input)
     h, w = img.shape[:2]
     if h < 60 or w < 60:
@@ -90,28 +76,24 @@ def extract_dual_dots_from_image(
     crop_l = crop_both[:, :split_x]
     crop_r = crop_both[:, split_x:]
 
-    # Morphological kernels for multi-scale dot detection
     k5 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     k7 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
     k11 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
 
-    # --- LEFT HALF: GREY BASE DOTS ---
+    # Left side: base dots (grey)
     gray_l = cv2.cvtColor(crop_l, cv2.COLOR_BGR2GRAY)
     hsv_l = cv2.cvtColor(crop_l, cv2.COLOR_BGR2HSV)
 
-    # Multi-scale top-hat captures both small sharp dots and wider/faint dots
     th5 = cv2.morphologyEx(gray_l, cv2.MORPH_TOPHAT, k5)
     th7 = cv2.morphologyEx(gray_l, cv2.MORPH_TOPHAT, k7)
     th11 = cv2.morphologyEx(gray_l, cv2.MORPH_TOPHAT, k11)
     th_l = np.maximum(np.maximum(th5, th7), th11)
 
-    # Mask out green UI elements or high-saturation colors on left
     green_mask_l = (hsv_l[:, :, 0] >= 35) & (hsv_l[:, :, 0] <= 95) & (hsv_l[:, :, 1] > 50)
     th_l[green_mask_l] = 0
 
     blurred_l = cv2.GaussianBlur(th_l.astype(float), (3, 3), 0.8)
     dil_l = cv2.dilate(blurred_l, np.ones((3, 3), np.uint8))
-    # Threshold at 7.0 ensures faint top and head-adjacent dots are preserved
     peaks_l = (blurred_l == dil_l) & (blurred_l >= 7.0)
     peaks_l[:3, :] = False; peaks_l[-3:, :] = False
     peaks_l[:, :3] = False; peaks_l[:, -3:] = False
@@ -123,13 +105,12 @@ def extract_dual_dots_from_image(
         if not any(np.hypot(x - cx, y - cy) < 4.8 for cx, cy in grey_crop_dots):
             grey_crop_dots.append((float(x), float(y)))
 
-    # Sort from bottom (first shot) to top (last shot)
     grey_crop_dots.sort(key=lambda d: -d[1])
     if grey_crop_dots:
         med_x_l = float(np.median([d[0] for d in grey_crop_dots]))
         grey_crop_dots = [d for d in grey_crop_dots if abs(d[0] - med_x_l) < 60]
 
-    # --- RIGHT HALF: GREEN LOADOUT DOTS ---
+    # Right side: loadout dots (green)
     b_r, g_r, r_r = cv2.split(crop_r)
     g_signal = np.clip(g_r.astype(int) - ((r_r.astype(int) + b_r.astype(int)) // 2), 0, 255).astype(np.uint8)
     hsv_r = cv2.cvtColor(crop_r, cv2.COLOR_BGR2HSV)
@@ -187,10 +168,6 @@ def extract_dual_dots_from_image(
 
 
 def ocr_multipliers_from_image(image_bgr: np.ndarray) -> Tuple[float, float]:
-    """
-    Fallback OCR extractor for multiplier text if present on screen.
-    Maintained for backwards compatibility.
-    """
     try:
         import pytesseract
         h, w = image_bgr.shape[:2]
@@ -220,13 +197,6 @@ def calculate_compression_ratios(
     grey_dots: List[Tuple[float, float]],
     green_dots: List[Tuple[float, float]]
 ) -> Tuple[float, float]:
-    """
-    Matches the grey dots pattern (base trajectory) to the green dots (loadout trajectory)
-    as a whole to calculate:
-      - Vertical compression ratio: green_height / grey_height
-      - Horizontal compression ratio: green_width / grey_width
-    Evaluates over common corresponding shots to accurately capture tightness.
-    """
     if len(grey_dots) < 2 or len(green_dots) < 2:
         return 1.0, 1.0
 
@@ -268,10 +238,6 @@ def compute_deltas(dots: List[Tuple[float, float]]) -> List[Tuple[float, float]]
 
 
 def calculate_kick_parameters(dots: List[Tuple[float, float]]) -> Dict[str, Any]:
-    """
-    Analyzes trajectory dots to compute initial kick multiplier,
-    kick decay shots, and base vertical/horizontal scale factors.
-    """
     if len(dots) < 2:
         return {
             "initial_kick_mult": 2.20,
@@ -331,13 +297,6 @@ def generate_calibrated_pattern(
     initial_kick_mult: float = 1.0,
     kick_decay_shots: int = 1
 ) -> Tuple[List[Tuple[float, float]], Tuple[float, float]]:
-    """
-    Generates a full 60-65 shot recoil compensation pattern by:
-    1. Scaling the base trajectory shape (grey dots) by the measured compression ratios (v_ratio, h_ratio)
-    2. Incorporating green dot extensions if the loadout provided additional data points
-    3. Normalizing initial kick to avoid double-amplification with runtime kick_boost
-    4. Extrapolating the steady-state tail to cover full magazine size
-    """
     sorted_grey = sorted(grey_dots, key=lambda d: -d[1]) if grey_dots else []
     sorted_green = sorted(green_dots, key=lambda d: -d[1]) if green_dots else []
 
@@ -388,9 +347,6 @@ def compute_recoil_pattern(
     initial_kick_mult: float = 1.0,
     kick_decay_shots: int = 1
 ) -> Tuple[List[Tuple[float, float]], Tuple[float, float]]:
-    """
-    Computes a recoil pattern from a single set of dots (backwards compatible).
-    """
     if len(dots) < 2:
         return [], (0.0, 0.0)
     return generate_calibrated_pattern(
@@ -411,12 +367,6 @@ def calibrate_from_image(
     manual_vert_mult: Optional[float] = None,
     manual_horiz_mult: Optional[float] = None,
 ) -> Dict[str, Any]:
-    """
-    Performs full automated calibration from a weapon recoil screenshot:
-    1. Detects base (grey) and loadout (green) dots on the mannequin
-    2. Calculates vertical and horizontal compression ratios (tightness)
-    3. Synthesizes calibrated recoil pattern and weapon kick parameters
-    """
     try:
         res = extract_dual_dots_from_image(image_input)
     except Exception as e:
@@ -472,7 +422,6 @@ def calibrate_from_image(
     grey_dots = res["grey_dots"]
     green_dots = res["green_dots"]
 
-    # Calculate compression ratios
     v_ratio, h_ratio = calculate_compression_ratios(grey_dots, green_dots)
 
     if manual_vert_mult is not None:
@@ -480,11 +429,9 @@ def calibrate_from_image(
     if manual_horiz_mult is not None:
         h_ratio = float(manual_horiz_mult)
 
-    # Determine reference dots for kick parameters
     ref_dots = green_dots if len(green_dots) >= 2 else grey_dots
     kick_params = calculate_kick_parameters(ref_dots)
 
-    # Generate pattern scaled by compression ratios
     final_pattern, steady_state = generate_calibrated_pattern(
         grey_dots=grey_dots,
         green_dots=green_dots,

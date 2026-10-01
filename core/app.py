@@ -121,7 +121,7 @@ def load_presets() -> Dict[str, Dict[str, Any]]:
                         p.setdefault("v_decay_pct", 0.0)
                         p.setdefault("h_decay_pct", 0.0)
                         p.setdefault("require_ads", True)
-                        if "rpm" not in p and "bullet_delay_ms" in p:
+                        if ("rpm" not in p or not p["rpm"] or p["rpm"] <= 0) and "bullet_delay_ms" in p:
                             p["rpm"] = round(60000.0 / p["bullet_delay_ms"]) if p["bullet_delay_ms"] > 0 else 679
                     return data
         except Exception:
@@ -1106,7 +1106,7 @@ class DFRecoilApp:
         self.build_code_var.set(preset.get("build_code", ""))
 
         rpm_val = preset.get("rpm")
-        if rpm_val is not None:
+        if rpm_val and int(rpm_val) > 0:
             self.rpm_var.set(str(int(rpm_val)))
         else:
             delay = preset.get("bullet_delay_ms", 88)
@@ -1144,7 +1144,10 @@ class DFRecoilApp:
     def _get_ui_preset_data(self) -> Dict[str, Any]:
         try:
             rpm_val = int(float(self.rpm_var.get()))
-        except ValueError:
+            if rpm_val <= 0:
+                delay = int(self.var_delay.get())
+                rpm_val = round(60000.0 / delay) if delay > 0 else 679
+        except (ValueError, TypeError):
             delay = int(self.var_delay.get())
             rpm_val = round(60000.0 / delay) if delay > 0 else 679
 
@@ -1345,8 +1348,10 @@ class DFRecoilApp:
         from extractor import calibrate_from_image
         try:
             rpm = float(self.rpm_var.get())
+            if rpm <= 0:
+                raise ValueError
         except ValueError:
-            messagebox.showerror("Error", "Invalid RPM. Please enter a valid number (e.g. 679).", parent=self.root)
+            messagebox.showerror("Error", "Invalid RPM. Please enter a valid positive number (e.g. 679).", parent=self.root)
             return
 
         img_src = getattr(self, "_calib_img_path", None) or getattr(self, "_calib_img_pil", None)
@@ -1374,6 +1379,8 @@ class DFRecoilApp:
             return
         try:
             rpm = float(self.rpm_var.get())
+            if rpm <= 0:
+                rpm = 679.0
         except ValueError:
             rpm = 679.0
         MachineVisionPopup(self.root, self._last_calib_res, rpm, self._apply_calibration)

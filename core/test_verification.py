@@ -30,6 +30,8 @@ def run_tests():
     assert "v_decay_pct" in aug and "h_decay_pct" in aug, "Decay fields missing"
     assert "bullet_delay_ms" in aug and "micro_steps" in aug
     assert "require_ads" in aug and "hotkey" in aug
+    assert presets["AUG"]["rpm"] == 679, f"Expected AUG RPM 679, got {presets['AUG'].get('rpm')}"
+    assert presets["aks74"]["rpm"] == 533, f"Expected aks74 RPM 533, got {presets['aks74'].get('rpm')}"
     print("Preset values verified.")
 
     print("\n=== TEST 3: Config Loading & Active Preset ===")
@@ -135,56 +137,64 @@ def run_tests():
     print("Clean thread shutdown verified.")
 
     print("\n=== TEST 10: GUI Preset Switching & Controls ===")
+    backup_presets_t10 = json.loads(json.dumps(load_presets()))
     root = tk.Tk()
-    app = DFRecoilApp(root)
-    root.update_idletasks()
+    root.withdraw()
+    try:
+        app = DFRecoilApp(root)
+        root.update_idletasks()
 
-    cur_preset = app.preset_var.get()
-    assert cur_preset in app.presets
-    assert "vertical_scale" in app.presets[cur_preset]
-    assert app.ads_var.get() is True
+        cur_preset = app.preset_var.get()
+        assert cur_preset in app.presets
+        assert "vertical_scale" in app.presets[cur_preset]
+        assert app.ads_var.get() is True
 
-    # Switch to aks74 preset
-    if "aks74" in app.presets:
-        app.preset_combo.set("aks74")
-        app._on_preset_selected()
-        assert app.preset_var.get() == "aks74"
-        assert app.rpm_var.get() == "533"
-        assert abs(app.var_v_scale.get() - 3.77) < 1e-3
+        # Switch to aks74 preset
+        if "aks74" in app.presets:
+            app.preset_combo.set("aks74")
+            app._on_preset_selected()
+            assert app.preset_var.get() == "aks74"
+            assert app.rpm_var.get() == "533"
+            assert abs(app.var_v_scale.get() - 3.77) < 1e-3
 
-        # Switch back to original
-        app.preset_combo.set(cur_preset)
-        app._on_preset_selected()
-        assert app.preset_var.get() == cur_preset
-        assert app.rpm_var.get() == "679"
-    elif "M4A1 (Standard)" in app.presets:
-        app.preset_combo.set("M4A1 (Standard)")
-        app._on_preset_selected()
-        assert app.preset_var.get() == "M4A1 (Standard)"
-        assert app.build_code_var.get() == "M4A1 Assault Rifle-Warfare-5H9Q3L4089LKJ1A20K9P1"
-        assert abs(app.var_v_scale.get() - 3.40) < 1e-3
+            # Switch back to original
+            app.preset_combo.set(cur_preset)
+            app._on_preset_selected()
+            assert app.preset_var.get() == cur_preset
+            assert app.rpm_var.get() == "679"
 
-        # Switch back to original
-        app.preset_combo.set(cur_preset)
-        app._on_preset_selected()
-        assert app.preset_var.get() == cur_preset
+        app._copy_build_code()
+        clip_text = root.clipboard_get()
+        assert clip_text == app.build_code_var.get().strip()
 
-    app._copy_build_code()
-    clip_text = root.clipboard_get()
-    assert clip_text == app.build_code_var.get().strip()
+        # Test RPM serialization edge cases
+        app.rpm_var.set("600.5")
+        ui_data = app._get_ui_preset_data()
+        assert ui_data["rpm"] == 600
 
-    # Test Reset Defaults
-    app.var_v_scale.set(1.11)
-    app._reset_defaults_action()
-    expected_v = DEFAULT_PRESETS[cur_preset]["vertical_scale"]
-    assert abs(app.var_v_scale.get() - expected_v) < 1e-3
+        app.rpm_var.set("non_numeric")
+        app.var_delay.set(100)
+        ui_data2 = app._get_ui_preset_data()
+        assert ui_data2["rpm"] == 600
 
-    # Test Reload All
-    app._reload_all_action()
-    assert len(app.presets) >= 1
+        app.rpm_var.set("-50")
+        ui_data3 = app._get_ui_preset_data()
+        assert ui_data3["rpm"] == 600
 
-    app.engine.shutdown()
-    root.destroy()
+        # Test Reset Defaults
+        app.var_v_scale.set(1.11)
+        app._reset_defaults_action()
+        expected_v = DEFAULT_PRESETS[cur_preset]["vertical_scale"]
+        assert abs(app.var_v_scale.get() - expected_v) < 1e-3
+
+        # Test Reload All
+        app._reload_all_action()
+        assert len(app.presets) >= 1
+
+        app.engine.shutdown()
+        root.destroy()
+    finally:
+        save_presets(backup_presets_t10)
     print("GUI Preset Switching & Controls verified.")
 
     print("\n=== TEST 11: Corrupted Presets Recovery ===")
