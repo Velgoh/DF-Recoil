@@ -4,65 +4,38 @@ DF-Recoil is a lightweight, standalone recoil compensator and weapon preset mana
 
 ## Features
 
-- **Universal Presets**: Create, switch, and save distinct recoil profiles for different weapons and attachments.
-- **Weapon Build Codes**: Attach in-game Gunsmith modification codes directly to presets with one-click copy to clipboard.
-- **Natural Smoothing**: Bézier-interpolated micro-stepping eliminates jagged cursor motion.
-- **Dynamic Kick Boost**: Smooth initial kick compensation curve decays into steady sustained fire.
-- **Customizable Tuning**: Sliders for vertical/horizontal scale, initial kick multiplier, kick decay shots, fire delay, micro-steps, and jitter.
-- **Hotkey & ADS Toggle**: Instant toggle via hotkey (default: F6) and optional Right Mouse Button (ADS) requirement.
-- **Zero Dependencies**: Runs on standard Windows Python 3.10+ without external third-party packages.
+- **Spacious Two-Column Dashboard**: Clean, modern dark-themed UI designed for clarity without compacting or cutting off controls.
+- **Master Recoil Scale**: Global multiplier slider scaling overall compensation strength up or down in one place.
+- **Vertical & Horizontal Recoil Decay**: Separate per-bullet strength loss sliders (+ weakens pull, - strengthens; decays down to 0% strength) to counter weapon stabilization during full-auto spray.
+- **Auto-Calibrate from Screenshot**: Paste (`Ctrl+V`) or select in-game Gunsmith mannequin screenshots. The system extracts base grey dots (trajectory path) and green dots (loadout spread tightness), computes exact vertical/horizontal compression ratios, and builds a calibrated profile.
+- **Machine Vision Cross-Validation**: Interactive overlay showing detected dots and trajectory curves with click-to-add/delete dot corrections.
+- **Universal Presets & Build Codes**: Create, delete, switch, and save weapon profiles with built-in Gunsmith modification build codes and one-click clipboard copying.
+- **Dedicated Save & Auto-Save**: Quick Save button right next to presets, plus automatic preset persistence on exit.
+- **Natural Smoothing & Kick Boost**: Bézier-interpolated micro-stepping, initial kick decay curve, and humanized jitter.
+- **Hotkey & ADS-By-Default**: Default requirement to aim down sights (Hold RMB) with toggle hotkey (default: F6).
 
-## Bundled Preset
+## Installation & Quick Start
 
-Pre-configured with a calibrated AUG setup:
-- **Weapon**: AUG (Laser Build)
-- **Build Code**: `AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3`
-- **Settings**: Vertical 4.20x, Horizontal 3.85x, Kick Mult 2.20x, Decay 6 shots, Delay 133ms, Steps 10, Jitter 0.35px, Hotkey F6.
-
-## Installation
-
-### Option 1: Release Package (Ready to Run)
 1. Download `DF-Recoil.zip` from the [Releases](https://github.com/Velgoh/DF-Recoil/releases) page.
-2. Extract the archive anywhere on your PC.
-3. Run `Start DF-Recoil.bat`.
-
-### Option 2: Run from Source
-1. Ensure Python 3.10+ is installed on Windows.
-2. Clone this repository:
-   ```bash
-   git clone https://github.com/Velgoh/DF-Recoil.git
-   cd DF-Recoil
-   ```
-3. Launch via the root batch file:
-   ```cmd
-   Start DF-Recoil.bat
-   ```
-   Or run directly:
-   ```bash
-   python core/app.py
-   ```
-
-## Usage
-
-1. Open `Start DF-Recoil.bat`.
-2. Select your desired weapon preset from the dropdown.
-3. Press your hotkey (**F6** by default) or click the status banner in the GUI to enable compensation.
-4. In-game, hold Left Mouse Button (LMB) to fire.
-5. If using build codes, click **Copy** next to the Build Code field and paste it directly into Delta Force's Gunsmith import screen.
+2. Extract the folder anywhere on your PC.
+3. Double-click **`Start DF-Recoil.bat`** (automatically checks and installs requirements if needed).
+4. Select or create your weapon preset, paste a Gunsmith screenshot to auto-calibrate, and toggle with **F6** in-game!
 
 ## Project Structure
 
 ```
 DF-Recoil/
-├── Start DF-Recoil.bat      # Quick launcher
+├── Start DF-Recoil.bat        # Auto-launch script with dependency check
 ├── README.md
 ├── core/
-│   ├── app.py              # Main application & GUI
-│   ├── presets.json        # Weapon presets and build codes
-│   ├── config.json         # Active preset configuration
-│   ├── pattern.json        # Calibrated recoil curve profile
-│   ├── requirements.txt    # Standard library notice
-│   └── test_verification.py # Test suite
+│   ├── app.py                # Main application & GUI
+│   ├── extractor.py          # Machine vision dot extraction & pattern matching
+│   ├── presets.json          # Weapon presets and tuning parameters
+│   ├── config.json           # Active preset configuration
+│   ├── pattern.json          # Calibrated recoil curve profile
+│   ├── requirements.txt      # Python package requirements
+│   ├── test_verification.py  # Unit test suite
+│   └── test_comprehensive.py # Vision & engine validation suite
 ```
 
 ---

@@ -27,6 +27,13 @@ if "%PYTHON_CMD%"=="" (
     exit /b 1
 )
 
+%PYTHON_CMD% -c "import cv2, numpy, PIL" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [INFO] Installing required libraries (opencv-python, numpy, pillow)...
+    %PYTHON_CMD% -m pip install -r "%~dp0core\requirements.txt"
+    echo.
+)
+
 set PYTHON_RUNNER=%PYTHON_CMD%
 where pythonw >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
