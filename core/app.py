@@ -62,33 +62,18 @@ CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
 PATTERN_FILE = os.path.join(SCRIPT_DIR, "pattern.json")
 
 DEFAULT_PRESETS: Dict[str, Dict[str, Any]] = {
-    "AUG (Laser Build)": {
+    "AUG": {
         "build_code": "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3",
-        "master_scale": 1.00,
-        "vertical_scale": 4.20,
-        "horizontal_scale": 3.85,
-        "v_decay_pct": 0.0,
-        "h_decay_pct": 0.0,
-        "initial_kick_mult": 2.20,
-        "kick_decay_shots": 6,
-        "bullet_delay_ms": 133,
+        "master_scale": 1.20,
+        "vertical_scale": 2.70,
+        "horizontal_scale": 2.92,
+        "v_decay_pct": 1.0,
+        "h_decay_pct": -1.0,
+        "initial_kick_mult": 1.00,
+        "kick_decay_shots": 2,
+        "bullet_delay_ms": 88,
         "micro_steps": 10,
         "jitter": 0.35,
-        "hotkey": "F6",
-        "require_ads": True
-    },
-    "M4A1 (Standard)": {
-        "build_code": "M4A1 Assault Rifle-Warfare-5H9Q3L4089LKJ1A20K9P1",
-        "master_scale": 1.00,
-        "vertical_scale": 3.40,
-        "horizontal_scale": 1.80,
-        "v_decay_pct": 0.0,
-        "h_decay_pct": 0.0,
-        "initial_kick_mult": 1.75,
-        "kick_decay_shots": 5,
-        "bullet_delay_ms": 75,
-        "micro_steps": 10,
-        "jitter": 0.30,
         "hotkey": "F6",
         "require_ads": True
     }
@@ -149,7 +134,7 @@ def load_config() -> Dict[str, Any]:
                 return json.load(f)
         except Exception:
             pass
-    return {"active_preset": "AUG (Laser Build)"}
+    return {"active_preset": "AUG"}
 
 
 def save_config(cfg: Dict[str, Any]) -> bool:
@@ -689,9 +674,9 @@ class DFRecoilApp:
         self._configure_styles()
         self._build_ui()
 
-        active_preset = self.config.get("active_preset", "AUG (Laser Build)")
+        active_preset = self.config.get("active_preset", "AUG")
         if active_preset not in self.presets:
-            active_preset = next(iter(self.presets)) if self.presets else "AUG (Laser Build)"
+            active_preset = next(iter(self.presets)) if self.presets else "AUG"
         self._refresh_preset_list(select_name=active_preset)
         self._load_preset_to_ui(active_preset)
 

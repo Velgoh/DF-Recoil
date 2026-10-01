@@ -1,31 +1,16 @@
 {
   "AUG": {
-    "build_code": "AUG Assault Rifle-Warfare-6LFKV64073PHD3H80H3R3",
+    "build_code": "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3",
     "master_scale": 1.2,
     "vertical_scale": 2.7,
     "horizontal_scale": 2.92,
-    "v_decay_pct": 0.1,
-    "h_decay_pct": 0.1,
+    "v_decay_pct": 1.0,
+    "h_decay_pct": -1.0,
     "initial_kick_mult": 1.0,
     "kick_decay_shots": 2,
     "bullet_delay_ms": 88,
     "micro_steps": 10,
-    "jitter": 0.3,
-    "hotkey": "F6",
-    "require_ads": true
-  },
-  "M4A1 (Standard)": {
-    "build_code": "M4A1 Assault Rifle-Warfare-5H9Q3L4089LKJ1A20K9P1",
-    "master_scale": 1.0,
-    "vertical_scale": 3.4,
-    "horizontal_scale": 1.8,
-    "v_decay_pct": 0.0,
-    "h_decay_pct": 0.0,
-    "initial_kick_mult": 1.75,
-    "kick_decay_shots": 5,
-    "bullet_delay_ms": 75,
-    "micro_steps": 10,
-    "jitter": 0.3,
+    "jitter": 0.35,
     "hotkey": "F6",
     "require_ads": true
   }
