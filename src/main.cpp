@@ -451,16 +451,17 @@ static void setDefaultDots(Preset& p) {
 static std::vector<Preset> builtInDefaults() {
     std::vector<Preset> v;
     auto mk = [&](const char* n, const char* code, double rpm, double master, double vs, double hs, double vd, double hd,
-                  double kick, double ks, double steps, double jit) {
+                  double kick, double ks, double steps, double jit, double ds = 0, double tv = 100, double th = 100, int mode = 1) {
         Preset p; p.name = n; p.buildCode = code; p.rpm = rpm; p.master = master; p.vScale = vs; p.hScale = hs;
         p.vDecay = vd; p.hDecay = hd; p.kickMult = kick; p.kickShots = ks; p.steps = steps; p.jitter = jit;
+        p.decayStart = ds; p.tailV = tv; p.tailH = th; p.patternMode = mode;
         setDefaultDots(p);
         v.push_back(p);
     };
-    mk("aug myself", "AUG Assault Rifle-Warfare-6LFUAVS073PHD3H80H3R3a", 679, 3.0, 2.82, 2.81, 1.2, 0.0, 1.0, 2, 30, 1.5);
-    mk("AUG", "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3", 679, 3.0, 2.70, 2.92, 1.3, 0.0, 1.0, 1, 30, 1.5);
-    mk("aks74", "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3", 533, 0.41, 3.77, 1.79, 0.7, 10.0, 1.2, 3, 10, 0.35);
-    mk("ptr32", "PTR-32 Assault Rifle-Warfare-6LG633O073PHD3H80H3R3", 632, 0.5, 2.88, 1.94, 0.7, -0.7, 1.0, 2, 30, 1.5);
+    mk("aug myself", "AUG Assault Rifle-Warfare-6LFUAVS073PHD3H80H3R3a", 679, 3.0, 2.82, 2.24, 1.5, -1.5, 1.0, 2, 30, 1.5, 0, 90, 110, 0);
+    mk("AUG", "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3", 679, 3.0, 2.70, 2.92, 1.3, 0.0, 1.0, 1, 30, 1.5, 0, 100, 100, 1);
+    mk("aks74", "AUG Assault Rifle-Warfare-6LFHGS4073PHD3H80H3R3", 533, 0.41, 3.77, 1.79, 0.7, 10.0, 1.2, 3, 10, 0.35, 0, 100, 100, 1);
+    mk("ptr32", "PTR-32 Assault Rifle-Warfare-6LG633O073PHD3H80H3R3", 632, 0.5, 2.88, 1.94, 0.7, -0.7, 1.0, 2, 30, 1.5, 0, 100, 100, 1);
     return v;
 }
 
@@ -727,62 +728,175 @@ static HWND g_editBuild = nullptr;
 static Image g_srcImage; static bool g_hasSrc = false; static std::string g_srcName;
 static Extract g_lastExtract; static bool g_hasExtract = false;
 
-// ------------------------------------------------------------ Layout Rectangles (Client: 1120 x 630)
+// ------------------------------------------------------------ Layout Rectangles (Dynamic & Adaptive)
 static int g_tab = 0; // 0 = Recoil Tuning, 1 = Pattern & Vision, 2 = Presets & Config
+static int g_clientW = 1080, g_clientH = 620;
 
 // Header rects
-static RECT rcTabs[3]{ {270, 14, 420, 52}, {420, 14, 570, 52}, {570, 14, 720, 52} };
-static RECT rcHeaderPrev{740, 14, 772, 52};
-static RECT rcHeaderPreset{776, 14, 936, 52};
-static RECT rcHeaderNext{940, 14, 972, 52};
-static RECT rcBanner{984, 14, 1096, 52};
+static RECT rcTabs[3]{};
+static RECT rcHeaderPrev{};
+static RECT rcHeaderPreset{};
+static RECT rcHeaderNext{};
+static RECT rcBanner{};
 
-// Card boundaries (524px wide, 508px high each)
-static RECT rcCardLeft{24, 74, 548, 584};
-static RECT rcCardRight{572, 74, 1096, 584};
+// Card boundaries
+static RECT rcCardLeft{};
+static RECT rcCardRight{};
 
 // Tab 0: Recoil Tuning rects
-static RECT rcSaveInTuning{44, 516, 280, 558};
-static RECT rcReloadInTuning{292, 516, 528, 558};
+static RECT rcSaveInTuning{};
+static RECT rcReloadInTuning{};
+static RECT rcSliderRows[kNumSliders]{};
+static RECT rcSliderTracks[kNumSliders]{};
 
 // Tab 1: Pattern & Vision rects
-static RECT rcPlot{44, 122, 528, 412};
-static RECT rcTelem{44, 424, 528, 566};
-static RECT rcSelect{592, 126, 828, 168};
-static RECT rcPaste{840, 126, 1076, 168};
-static RECT rcCalib{592, 178, 1076, 222};
-static RECT rcCross{592, 232, 828, 274};
-static RECT rcMode{840, 232, 1076, 274};
-static RECT rcBadge{592, 286, 1076, 566};
+static RECT rcPlot{};
+static RECT rcTelem{};
+static RECT rcSelect{};
+static RECT rcPaste{};
+static RECT rcCalib{};
+static RECT rcCross{};
+static RECT rcMode{};
+static RECT rcBadge{};
 
 // Tab 2: Presets & Config rects
-static const int PRESET_ROWS = 5, PRESET_H = 46;
-static RECT rcPresets{44, 122, 528, 352};
-static RECT rcNew{44, 368, 196, 410};
-static RECT rcDel{208, 368, 360, 410};
-static RECT rcSave{372, 368, 528, 410};
-static RECT rcReset{44, 422, 280, 464};
-static RECT rcReload{292, 422, 528, 464};
-static RECT rcHotkey{592, 122, 1076, 164};
-static RECT rcAds{592, 174, 1076, 216};
-static RECT rcBuildEdit{592, 256, 1076, 292};
-static RECT rcCopyBuild{592, 302, 828, 344};
-static RECT rcPasteBuild{840, 302, 1076, 344};
+static const int PRESET_ROWS = 5, PRESET_H = 44;
+static RECT rcPresets{};
+static RECT rcNew{};
+static RECT rcDel{};
+static RECT rcSave{};
+static RECT rcReset{};
+static RECT rcReload{};
+static RECT rcHotkey{};
+static RECT rcAds{};
+static RECT rcBuildEdit{};
+static RECT rcCopyBuild{};
+static RECT rcPasteBuild{};
+static RECT rcGuide{};
 
 static bool inRect(const RECT& r, int x, int y) { return x >= r.left && x < r.right && y >= r.top && y < r.bottom; }
 
 static RECT sliderTrack(int i) {
-    int col = 0, row = 0;
+    if (i >= 0 && i < kNumSliders) return rcSliderTracks[i];
+    return RECT{0, 0, 0, 0};
+}
+
+static void updateLayout(int w, int h) {
+    if (w <= 0 || h <= 0) return;
+    g_clientW = w; g_clientH = h;
+
+    // 1. Header Bar: y = 0..58
+    int bannerW = 140;
+    int bannerH = 36;
+    int bannerY = 12;
+    rcBanner = RECT{ w - 24 - bannerW, bannerY, w - 24, bannerY + bannerH };
+
+    int nextW = 30;
+    rcHeaderNext = RECT{ rcBanner.left - 8 - nextW, bannerY, rcBanner.left - 8, bannerY + bannerH };
+
+    int presetW = 156;
+    rcHeaderPreset = RECT{ rcHeaderNext.left - 4 - presetW, bannerY, rcHeaderNext.left - 4, bannerY + bannerH };
+
+    int prevW = 30;
+    rcHeaderPrev = RECT{ rcHeaderPreset.left - 4 - prevW, bannerY, rcHeaderPreset.left - 4, bannerY + bannerH };
+
+    // Segmented Tabs
+    int tabH = 36;
+    int tabW = 140;
+    int totalTabW = 3 * tabW;
+    int tabX = (rcHeaderPrev.left + 230 - totalTabW) / 2;
+    if (tabX < 236) tabX = 236;
+    if (tabX + totalTabW > rcHeaderPrev.left - 10) tabX = max<int>(236, (int)(rcHeaderPrev.left - 10 - totalTabW));
+    rcTabs[0] = RECT{ tabX, bannerY, tabX + tabW, bannerY + tabH };
+    rcTabs[1] = RECT{ tabX + tabW, bannerY, tabX + 2 * tabW, bannerY + tabH };
+    rcTabs[2] = RECT{ tabX + 2 * tabW, bannerY, tabX + 3 * tabW, bannerY + tabH };
+
+    // 2. Footer Bar: height 34
+    int footerTop = h - 34;
+
+    // 3. Card Containers (Left & Right)
+    int cardMargin = 20;
+    int cardGap = 16;
+    int cardTop = 62;
+    int cardBottom = footerTop - 10;
+    int cardW = max(380, (w - 2 * cardMargin - cardGap) / 2);
+    rcCardLeft = RECT{ cardMargin, cardTop, cardMargin + cardW, cardBottom };
+    rcCardRight = RECT{ rcCardLeft.right + cardGap, cardTop, w - cardMargin, cardBottom };
+
+    // 4. Tab 0: Recoil Tuning
+    int btnH = 36;
+    int btnY = cardBottom - 12 - btnH;
+    int btnMid = (rcCardLeft.left + rcCardLeft.right) / 2;
+    rcSaveInTuning = RECT{ rcCardLeft.left + 20, btnY, btnMid - 6, btnY + btnH };
+    rcReloadInTuning = RECT{ btnMid + 6, btnY, rcCardLeft.right - 20, btnY + btnH };
+
+    // Column 1 Sliders (6 sliders)
+    int col1Top = cardTop + 54;
+    int col1AvailH = btnY - 8 - col1Top;
+    int col1RowH = col1AvailH / 6;
     for (int r = 0; r < 6; r++) {
-        if (kCol1Map[r] == i) { col = 0; row = r; break; }
+        int i = kCol1Map[r];
+        int y = col1Top + r * col1RowH;
+        rcSliderRows[i] = RECT{ rcCardLeft.left + 20, y, rcCardLeft.right - 20, y + col1RowH };
+        rcSliderTracks[i] = RECT{ rcCardLeft.left + 20, y + 20, rcCardLeft.right - 20, y + 34 };
     }
+
+    // Column 2 Sliders (7 sliders)
+    int col2Top = cardTop + 54;
+    int col2AvailH = cardBottom - 26 - col2Top; // reserve 26px for bottom hint text
+    int col2RowH = col2AvailH / 7;
     for (int r = 0; r < 7; r++) {
-        if (kCol2Map[r] == i) { col = 1; row = r; break; }
+        int i = kCol2Map[r];
+        int y = col2Top + r * col2RowH;
+        rcSliderRows[i] = RECT{ rcCardRight.left + 20, y, rcCardRight.right - 20, y + col2RowH };
+        rcSliderTracks[i] = RECT{ rcCardRight.left + 20, y + 20, rcCardRight.right - 20, y + 34 };
     }
-    int x1 = (col == 0) ? 44 : 592;
-    int x2 = (col == 0) ? 528 : 1076;
-    int y = 126 + row * 54 + 22;
-    return RECT{x1, y, x2, y + 14};
+
+    // 5. Tab 1: Pattern & Vision
+    int plotTop = cardTop + 50;
+    int plotH = min(250, (cardBottom - plotTop - 20) * 58 / 100);
+    rcPlot = RECT{ rcCardLeft.left + 20, plotTop, rcCardLeft.right - 20, plotTop + plotH };
+    rcTelem = RECT{ rcCardLeft.left + 20, rcPlot.bottom + 10, rcCardLeft.right - 20, cardBottom - 12 };
+
+    int pvBtnTop = cardTop + 50;
+    int pvHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
+    rcSelect = RECT{ rcCardRight.left + 20, pvBtnTop, rcCardRight.left + 20 + pvHalfW, pvBtnTop + 36 };
+    rcPaste = RECT{ rcSelect.right + 10, pvBtnTop, rcCardRight.right - 20, pvBtnTop + 36 };
+    rcCalib = RECT{ rcCardRight.left + 20, rcSelect.bottom + 10, rcCardRight.right - 20, rcSelect.bottom + 46 };
+    rcCross = RECT{ rcCardRight.left + 20, rcCalib.bottom + 10, rcCardRight.left + 20 + pvHalfW, rcCalib.bottom + 46 };
+    rcMode = RECT{ rcCross.right + 10, rcCalib.bottom + 10, rcCardRight.right - 20, rcCalib.bottom + 46 };
+    rcBadge = RECT{ rcCardRight.left + 20, rcCross.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
+
+    // 6. Tab 2: Presets & Config
+    int prTop = cardTop + 50;
+    rcPresets = RECT{ rcCardLeft.left + 20, prTop, rcCardLeft.right - 20, prTop + PRESET_ROWS * PRESET_H };
+    int prBtnY1 = rcPresets.bottom + 10;
+    int prThirdW = (rcCardLeft.right - rcCardLeft.left - 40 - 16) / 3;
+    rcNew = RECT{ rcCardLeft.left + 20, prBtnY1, rcCardLeft.left + 20 + prThirdW, prBtnY1 + 34 };
+    rcDel = RECT{ rcNew.right + 8, prBtnY1, rcNew.right + 8 + prThirdW, prBtnY1 + 34 };
+    rcSave = RECT{ rcDel.right + 8, prBtnY1, rcCardLeft.right - 20, prBtnY1 + 34 };
+    int prBtnY2 = prBtnY1 + 40;
+    int prHalfW = (rcCardLeft.right - rcCardLeft.left - 40 - 10) / 2;
+    rcReset = RECT{ rcCardLeft.left + 20, prBtnY2, rcCardLeft.left + 20 + prHalfW, prBtnY2 + 34 };
+    rcReload = RECT{ rcReset.right + 10, prBtnY2, rcCardLeft.right - 20, prBtnY2 + 34 };
+
+    int cfgTop = cardTop + 50;
+    rcHotkey = RECT{ rcCardRight.left + 20, cfgTop, rcCardRight.right - 20, cfgTop + 36 };
+    rcAds = RECT{ rcCardRight.left + 20, rcHotkey.bottom + 10, rcCardRight.right - 20, rcHotkey.bottom + 46 };
+    int bldLblY = rcAds.bottom + 14;
+    rcBuildEdit = RECT{ rcCardRight.left + 20, bldLblY + 20, rcCardRight.right - 20, bldLblY + 54 };
+    int bldHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
+    rcCopyBuild = RECT{ rcCardRight.left + 20, rcBuildEdit.bottom + 10, rcCardRight.left + 20 + bldHalfW, rcBuildEdit.bottom + 44 };
+    rcPasteBuild = RECT{ rcCopyBuild.right + 10, rcBuildEdit.bottom + 10, rcCardRight.right - 20, rcBuildEdit.bottom + 44 };
+    rcGuide = RECT{ rcCardRight.left + 20, rcCopyBuild.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
+
+    if (g_editBuild) {
+        SetWindowPos(g_editBuild, nullptr,
+                     rcBuildEdit.left + 6, rcBuildEdit.top + 6,
+                     (rcBuildEdit.right - rcBuildEdit.left) - 12,
+                     (rcBuildEdit.bottom - rcBuildEdit.top) - 12,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+    }
 }
 
 // ------------------------------------------------------------ GDI & GDI+ Drawing Helpers
@@ -972,21 +1086,21 @@ static void paint(HDC dc, RECT cr) {
     fillRect(dc, cr, cBg);
 
     // 2. Header Bar
-    fillRect(dc, RECT{0, 0, cr.right, 66}, cHeader);
+    fillRect(dc, RECT{0, 0, cr.right, 58}, cHeader);
     HPEN penSep = CreatePen(PS_SOLID, 1, cBorder);
     HGDIOBJ opSep = SelectObject(dc, penSep);
-    MoveToEx(dc, 0, 66, nullptr);
-    LineTo(dc, cr.right, 66);
+    MoveToEx(dc, 0, 58, nullptr);
+    LineTo(dc, cr.right, 58);
     SelectObject(dc, opSep);
     DeleteObject(penSep);
 
     // Left Title
     text(dc, "DF-RECOIL", 24, 14, fTitle, cTextPrimary);
-    text(dc, "macOS Dark Edition · C++ Native", 25, 42, fSmall, cTextMuted);
+    text(dc, "macOS Dark Edition · C++ Native", 25, 40, fSmall, cTextMuted);
 
     // Center: Segmented Tab Control
-    fillRoundRect(g, 270, 14, 450, 38, 8, gdColor(cCardInner));
-    drawRoundRect(g, 270, 14, 450, 38, 8, gdColor(cBorder), 1.0f);
+    fillRoundRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, (rcTabs[2].right - rcTabs[0].left) + 4, (rcTabs[0].bottom - rcTabs[0].top) + 4, 8, gdColor(cCardInner));
+    drawRoundRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, (rcTabs[2].right - rcTabs[0].left) + 4, (rcTabs[0].bottom - rcTabs[0].top) + 4, 8, gdColor(cBorder), 1.0f);
 
     const char* tabNames[3] = {"Recoil Tuning", "Pattern & Vision", "Presets & Config"};
     for (int i = 0; i < 3; i++) {
@@ -1009,15 +1123,16 @@ static void paint(HDC dc, RECT cr) {
     pillButton(g, dc, rcHeaderNext, "►", cCard, cTextSecondary, cBorder, true, fBtn);
 
     // Master Enable / Standby Pill
+    const Preset& P = g_presets[g_sel];
+    char bannerText[64];
+    snprintf(bannerText, sizeof bannerText, "%s (%s)", g_enabled ? "● ACTIVE" : "○ STANDBY", hotkeyName(P.hotkey));
     if (g_enabled) {
-        pillButton(g, dc, rcBanner, "● ACTIVE (F6)", cGreen, RGB(0, 0, 0), cGreen, false, fBtn);
+        pillButton(g, dc, rcBanner, bannerText, cGreen, RGB(0, 0, 0), cGreen, false, fBtn);
     } else {
-        pillButton(g, dc, rcBanner, "○ STANDBY (F6)", cCard, cTextMuted, cBorder, true, fBtn);
+        pillButton(g, dc, rcBanner, bannerText, cCard, cTextMuted, cBorder, true, fBtn);
     }
 
     // 3. Tab Contents
-    const Preset& P = g_presets[g_sel];
-
     if (g_tab == 0) {
         // Tab 0: Recoil Tuning
         cardContainer(g, dc, rcCardLeft, "SENSITIVITY & TIMING", "Core weapon scaling & fire-rate response");
@@ -1026,10 +1141,10 @@ static void paint(HDC dc, RECT cr) {
         // Column 1 Sliders
         for (int r = 0; r < 6; r++) {
             int i = kCol1Map[r];
-            int y = 126 + r * 54;
-            text(dc, kSliders[i].label, 44, y + 2, fLabel, cTextSecondary);
-            text(dc, sliderText(i), 528, y + 2, fLabel, cBlue, DT_RIGHT);
-            RECT t = sliderTrack(i);
+            RECT rowRc = rcSliderRows[i];
+            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabel, cTextSecondary);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabel, cBlue, DT_RIGHT);
+            RECT t = rcSliderTracks[i];
             fillRoundRect(g, t.left, t.top + 4, t.right - t.left, 6, 3, gdColor(cBorder));
             double f = (sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo);
             int kx = t.left + (int)(f * (t.right - t.left));
@@ -1045,10 +1160,10 @@ static void paint(HDC dc, RECT cr) {
         // Column 2 Sliders
         for (int r = 0; r < 7; r++) {
             int i = kCol2Map[r];
-            int y = 126 + r * 54;
-            text(dc, kSliders[i].label, 592, y + 2, fLabel, cTextSecondary);
-            text(dc, sliderText(i), 1076, y + 2, fLabel, cBlue, DT_RIGHT);
-            RECT t = sliderTrack(i);
+            RECT rowRc = rcSliderRows[i];
+            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabel, cTextSecondary);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabel, cBlue, DT_RIGHT);
+            RECT t = rcSliderTracks[i];
             fillRoundRect(g, t.left, t.top + 4, t.right - t.left, 6, 3, gdColor(cBorder));
             double f = (sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo);
             int kx = t.left + (int)(f * (t.right - t.left));
@@ -1058,7 +1173,7 @@ static void paint(HDC dc, RECT cr) {
             Gdiplus::Pen penThumb(Gdiplus::Color(255, 200, 200, 205), 1.0f);
             g.DrawEllipse(&penThumb, (float)(kx - 8), (float)(t.top + 7 - 8), 16.0f, 16.0f);
         }
-        text(dc, "Decay counters gun stabilization. Tail applies past pattern dots (45-mag).", 592, 524, fSmall, cTextMuted);
+        text(dc, "Decay counters gun stabilization. Tail applies past pattern dots (45-mag).", rcCardRight.left + 20, rcCardRight.bottom - 24, fSmall, cTextMuted);
     } else if (g_tab == 1) {
         // Tab 1: Pattern & Vision
         cardContainer(g, dc, rcCardLeft, "COMPENSATION TRAJECTORY", "Bézier path with steady-state tail & real-time telemetry");
@@ -1144,45 +1259,52 @@ static void paint(HDC dc, RECT cr) {
         pillButton(g, dc, rcSave, "SAVE", cBlue, cTextPrimary, cBlue, false, fBtn);
         pillButton(g, dc, rcReset, "RESET DEFAULTS", cCardInner, cTextSecondary, cBorder, true, fBtn);
         pillButton(g, dc, rcReload, "RELOAD ALL", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        text(dc, "Double-click or press F2 to rename preset. Enter or Esc to confirm.", rcCardLeft.left + 20, 520, fSmall, cTextMuted);
+        text(dc, "Double-click or press F2 to rename preset. Enter or Esc to confirm.", rcCardLeft.left + 20, rcCardLeft.bottom - 24, fSmall, cTextMuted);
 
         // Right side: Controls
         pillButton(g, dc, rcHotkey, std::string("TOGGLE HOTKEY: ") + hotkeyName(P.hotkey) + "  (Click to cycle)", cCardInner, cTextPrimary, cBorder, true, fBtn);
         pillButton(g, dc, rcAds, P.requireAds ? "REQUIRE ADS (HOLD RMB): ON" : "REQUIRE ADS (HOLD RMB): OFF", cCardInner, P.requireAds ? cGreen : cTextMuted, cBorder, true, fBtn);
 
-        text(dc, "GUNSMITH WEAPON BUILD CODE", 592, 232, fLabel, cTextSecondary);
-        drawRoundRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 4, gdColor(cBorder), 1.0f);
+        text(dc, "GUNSMITH WEAPON BUILD CODE", rcCardRight.left + 20, rcAds.bottom + 14, fLabel, cTextSecondary);
+        fillRoundRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 6, gdColor(cCardInner));
+        drawRoundRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 6, gdColor(cBorder), 1.0f);
         pillButton(g, dc, rcCopyBuild, "COPY BUILD CODE", cCardInner, cTextSecondary, cBorder, true, fBtn);
         pillButton(g, dc, rcPasteBuild, "PASTE BUILD CODE", cCardInner, cTextSecondary, cBorder, true, fBtn);
 
         // Guide box
-        RECT rcGuide{592, 358, 1076, 566};
         fillRoundRect(g, rcGuide.left, rcGuide.top, rcGuide.right - rcGuide.left, rcGuide.bottom - rcGuide.top, 8, gdColor(cCardInner));
         drawRoundRect(g, rcGuide.left, rcGuide.top, rcGuide.right - rcGuide.left, rcGuide.bottom - rcGuide.top, 8, gdColor(cBorder), 1.0f);
         text(dc, "HOW TO USE DF-RECOIL:", rcGuide.left + 16, rcGuide.top + 14, fLabel, cTextPrimary);
-        text(dc, "1. Select or create your weapon profile in this tab.", rcGuide.left + 16, rcGuide.top + 42, fSmall, cTextSecondary);
-        text(dc, "2. Press [F6] or click the header pill to toggle recoil assistance.", rcGuide.left + 16, rcGuide.top + 68, fSmall, cTextSecondary);
-        text(dc, "3. Aim down sights (Hold RMB) and fire (Hold LMB) in game.", rcGuide.left + 16, rcGuide.top + 94, fSmall, cTextSecondary);
-        text(dc, "4. Tune vertical/horizontal scale & decay in the Recoil Tuning tab.", rcGuide.left + 16, rcGuide.top + 120, fSmall, cTextSecondary);
-        text(dc, "5. Import/export weapon codes directly to Delta Force Gunsmith.", rcGuide.left + 16, rcGuide.top + 146, fSmall, cTextSecondary);
+        text(dc, "1. Select or create your weapon profile in this tab.", rcGuide.left + 16, rcGuide.top + 38, fSmall, cTextSecondary);
+        char guide2[128];
+        snprintf(guide2, sizeof guide2, "2. Press [%s] or click header pill to toggle recoil assistance.", hotkeyName(P.hotkey));
+        text(dc, guide2, rcGuide.left + 16, rcGuide.top + 60, fSmall, cTextSecondary);
+        text(dc, "3. Aim down sights (Hold RMB) and fire (Hold LMB) in game.", rcGuide.left + 16, rcGuide.top + 82, fSmall, cTextSecondary);
+        text(dc, "4. Tune vertical/horizontal scale & decay in the Recoil Tuning tab.", rcGuide.left + 16, rcGuide.top + 104, fSmall, cTextSecondary);
+        text(dc, "5. Import/export weapon codes directly to Delta Force Gunsmith.", rcGuide.left + 16, rcGuide.top + 126, fSmall, cTextSecondary);
     }
 
-    // 4. Footer Bar (y = 594 to 630)
-    fillRect(dc, RECT{0, 594, cr.right, cr.bottom}, cHeader);
+    // 4. Footer Bar
+    int footerH = 34;
+    int footerY = cr.bottom - footerH;
+    fillRect(dc, RECT{0, footerY, cr.right, cr.bottom}, cHeader);
     HPEN penFoot = CreatePen(PS_SOLID, 1, cBorder);
     HGDIOBJ opFoot = SelectObject(dc, penFoot);
-    MoveToEx(dc, 0, 594, nullptr);
-    LineTo(dc, cr.right, 594);
+    MoveToEx(dc, 0, footerY, nullptr);
+    LineTo(dc, cr.right, footerY);
     SelectObject(dc, opFoot);
     DeleteObject(penFoot);
 
     // Status dot
     Gdiplus::SolidBrush brStat(gdColor(g_enabled ? cGreen : cOrange));
-    g.FillEllipse(&brStat, 24.0f, 608.0f, 8.0f, 8.0f);
+    g.FillEllipse(&brStat, 24.0f, (float)(footerY + 13), 8.0f, 8.0f);
     g.Flush();
-    text(dc, g_status, 38, 602, fSmall, cTextSecondary);
+    text(dc, g_status, 38, footerY + 8, fSmall, cTextSecondary);
 
-    text(dc, "Toggle: [F6]  |  ADS: [Hold RMB]  |  Tabs: [1] [2] [3]", cr.right - 24, 602, fSmall, cTextMuted, DT_RIGHT);
+    char footText[128];
+    snprintf(footText, sizeof footText, "Toggle: [%s]  |  ADS: [%s]  |  Tabs: [1] [2] [3]",
+             hotkeyName(P.hotkey), P.requireAds ? "Hold RMB" : "Always");
+    text(dc, footText, cr.right - 24, footerY + 8, fSmall, cTextMuted, DT_RIGHT);
 }
 
 // ============================================================ cross-validation window (Apple macOS Dark Mode styling)
@@ -1536,14 +1658,58 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_CREATE: {
         SetTimer(h, 1, 60, nullptr);
         DragAcceptFiles(h, TRUE);
+        RECT cr{}; GetClientRect(h, &cr);
+        if (cr.right > 0 && cr.bottom > 0) updateLayout(cr.right, cr.bottom);
         g_editBuild = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | ES_AUTOHSCROLL,
-                                      rcBuildEdit.left + 4, rcBuildEdit.top + 6,
-                                      (rcBuildEdit.right - rcBuildEdit.left) - 8,
-                                      (rcBuildEdit.bottom - rcBuildEdit.top) - 10,
+                                      rcBuildEdit.left + 6, rcBuildEdit.top + 6,
+                                      (rcBuildEdit.right - rcBuildEdit.left) - 12,
+                                      (rcBuildEdit.bottom - rcBuildEdit.top) - 12,
                                       h, (HMENU)101, GetModuleHandle(nullptr), nullptr);
         SendMessage(g_editBuild, WM_SETFONT, (WPARAM)fSmallBold, TRUE);
         ShowWindow(g_editBuild, (g_tab == 2) ? SW_SHOW : SW_HIDE);
         return 0;
+    }
+    case WM_SIZE: {
+        int szW = LOWORD(l), szH = HIWORD(l);
+        if (szW > 0 && szH > 0) {
+            updateLayout(szW, szH);
+            InvalidateRect(h, nullptr, FALSE);
+        }
+        return 0;
+    }
+    case WM_SETCURSOR: {
+        HWND hCursorWnd = (HWND)w;
+        if (hCursorWnd == h) {
+            POINT pt; GetCursorPos(&pt); ScreenToClient(h, &pt);
+            bool hand = false;
+            if (inRect(rcBanner, pt.x, pt.y) || inRect(rcHeaderPrev, pt.x, pt.y) ||
+                inRect(rcHeaderPreset, pt.x, pt.y) || inRect(rcHeaderNext, pt.x, pt.y)) hand = true;
+            for (int i = 0; i < 3 && !hand; i++) if (inRect(rcTabs[i], pt.x, pt.y)) hand = true;
+            if (g_tab == 0) {
+                if (inRect(rcSaveInTuning, pt.x, pt.y) || inRect(rcReloadInTuning, pt.x, pt.y)) hand = true;
+                for (int i = 0; i < kNumSliders && !hand; i++) {
+                    RECT t = rcSliderTracks[i];
+                    RECT hit{t.left - 10, t.top - 20, t.right + 10, t.bottom + 8};
+                    if (inRect(hit, pt.x, pt.y)) hand = true;
+                }
+            } else if (g_tab == 1) {
+                if (inRect(rcSelect, pt.x, pt.y) || inRect(rcPaste, pt.x, pt.y) ||
+                    inRect(rcCalib, pt.x, pt.y) || inRect(rcCross, pt.x, pt.y) ||
+                    inRect(rcMode, pt.x, pt.y)) hand = true;
+            } else if (g_tab == 2) {
+                if (inRect(rcNew, pt.x, pt.y) || inRect(rcDel, pt.x, pt.y) ||
+                    inRect(rcSave, pt.x, pt.y) || inRect(rcReset, pt.x, pt.y) ||
+                    inRect(rcReload, pt.x, pt.y) || inRect(rcHotkey, pt.x, pt.y) ||
+                    inRect(rcAds, pt.x, pt.y) || inRect(rcCopyBuild, pt.x, pt.y) ||
+                    inRect(rcPasteBuild, pt.x, pt.y)) hand = true;
+                if (inRect(rcPresets, pt.x, pt.y)) hand = true;
+            }
+            if (hand) {
+                SetCursor(LoadCursor(nullptr, IDC_HAND));
+                return TRUE;
+            }
+        }
+        break;
     }
     case WM_DROPFILES: {
         HDROP hDrop = (HDROP)w;
@@ -1601,8 +1767,10 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             syncEngine(); g_status = std::string("Hotkey set to [") + hotkeyName(p.hotkey) + "]";
             InvalidateRect(h, nullptr, FALSE);
         } else if (inRect(rcHeaderPreset, x, y) || inRect(rcHeaderPrev, x, y)) {
-            selectPreset((g_sel + (int)g_presets.size() - 1) % (int)g_presets.size());
-            savePresets();
+            if (!g_presets.empty()) {
+                selectPreset((g_sel + (int)g_presets.size() - 1) % (int)g_presets.size());
+                savePresets();
+            }
             InvalidateRect(h, nullptr, FALSE);
         }
         return 0;
@@ -1611,6 +1779,13 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         int x = (short)LOWORD(l), y = (short)HIWORD(l);
         SetFocus(h);
 
+        // Commit preset naming on click outside presets
+        if (g_naming && !inRect(rcPresets, x, y)) {
+            g_naming = false;
+            g_presets[g_sel].name = uniqueName(g_presets[g_sel].name, g_sel);
+            savePresets();
+        }
+
         // Header controls (always active)
         if (inRect(rcBanner, x, y)) {
             g_enabled = !g_enabled;
@@ -1618,14 +1793,18 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             return 0;
         }
         if (inRect(rcHeaderPrev, x, y)) {
-            selectPreset((g_sel + (int)g_presets.size() - 1) % (int)g_presets.size());
-            savePresets();
+            if (!g_presets.empty()) {
+                selectPreset((g_sel + (int)g_presets.size() - 1) % (int)g_presets.size());
+                savePresets();
+            }
             InvalidateRect(h, nullptr, FALSE);
             return 0;
         }
         if (inRect(rcHeaderNext, x, y)) {
-            selectPreset((g_sel + 1) % (int)g_presets.size());
-            savePresets();
+            if (!g_presets.empty()) {
+                selectPreset((g_sel + 1) % (int)g_presets.size());
+                savePresets();
+            }
             InvalidateRect(h, nullptr, FALSE);
             return 0;
         }
@@ -1653,7 +1832,7 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         // Tab 0: Recoil Tuning
         if (g_tab == 0) {
             for (int i = 0; i < kNumSliders; i++) {
-                RECT t = sliderTrack(i);
+                RECT t = rcSliderTracks[i];
                 RECT hit{t.left - 10, t.top - 20, t.right + 10, t.bottom + 8};
                 if (inRect(hit, x, y)) {
                     g_dragSlider = i; SetCapture(h); setSlider(i, x); InvalidateRect(h, nullptr, FALSE); return 0;
@@ -1819,14 +1998,16 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         return 0;
     }
     case WM_KEYDOWN:
-        if (w == '1') {
-            g_tab = 0; ShowWindow(g_editBuild, SW_HIDE); InvalidateRect(h, nullptr, FALSE); return 0;
-        }
-        if (w == '2') {
-            g_tab = 1; ShowWindow(g_editBuild, SW_HIDE); InvalidateRect(h, nullptr, FALSE); return 0;
-        }
-        if (w == '3') {
-            g_tab = 2; ShowWindow(g_editBuild, SW_SHOW); InvalidateRect(h, nullptr, FALSE); return 0;
+        if (!g_naming) {
+            if (w == '1') {
+                g_tab = 0; ShowWindow(g_editBuild, SW_HIDE); InvalidateRect(h, nullptr, FALSE); return 0;
+            }
+            if (w == '2') {
+                g_tab = 1; ShowWindow(g_editBuild, SW_HIDE); InvalidateRect(h, nullptr, FALSE); return 0;
+            }
+            if (w == '3') {
+                g_tab = 2; ShowWindow(g_editBuild, SW_SHOW); InvalidateRect(h, nullptr, FALSE); return 0;
+            }
         }
         if (w == VK_F2 && !g_naming) {
             g_tab = 2; ShowWindow(g_editBuild, SW_SHOW);
@@ -1992,10 +2173,10 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
     int workW = (workArea.right > workArea.left) ? (workArea.right - workArea.left) : 1920;
     int workH = (workArea.bottom > workArea.top) ? (workArea.bottom - workArea.top) : 1080;
 
-    int clientW = 1120;
-    int clientH = 630;
-    if (workH < 690) clientH = max(560, workH - 65);
-    if (workW < 1140) clientW = max(960, workW - 30);
+    int clientW = 1080;
+    int clientH = 620;
+    if (workH < 700) clientH = max(560, workH - 65);
+    if (workW < 1120) clientW = max(940, workW - 30);
 
     DWORD st = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
     RECT r{0, 0, clientW, clientH};
@@ -2005,6 +2186,8 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
 
     int posX = workArea.left + max(0, (workW - winW) / 2);
     int posY = workArea.top + max(0, (workH - winH) / 2);
+
+    updateLayout(clientW, clientH);
 
     g_hwnd = CreateWindowW(L"DFRecoilWnd", L"Delta Force Recoil Manager", st,
                            posX, posY, winW, winH, nullptr, nullptr, hi, nullptr);
