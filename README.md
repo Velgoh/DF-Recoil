@@ -1,40 +1,82 @@
-# DF-Recoil - Recoil Manager for Delta Force
+# DF-Recoil v2.0 (C++ Native Rebuild)
 
-DF-Recoil is a lightweight, standalone recoil compensator and weapon preset manager for Delta Force. It provides smooth, humanized curve compensation, customizable weapon profiles, and built-in weapon build code sharing.
+A high-performance, standalone Win32/C++ recoil compensator and weapon profile manager for **Delta Force**.
+
+Re-engineered from the ground up as a native C++ executable without Python or OpenCV runtime dependencies. Features an **Apple macOS Dark Mode inspired interface**, responsive monitor adaptation, Bézier-interpolated mouse movement, and machine vision dot calibration.
+
+---
+
+## What's New in v2.0 (Apple macOS Dark Mode & Compact Layout)
+
+- **Apple macOS Dark Mode Aesthetic**:
+  - Sleek dark graphite surfaces (`#1C1C1E`) with elevated secondary card containers (`#2C2C2E`) and subtle borders (`#3A3A3C`).
+  - Crisp ClearType `Segoe UI` typography with high legibility.
+  - Apple Blue (`#0A84FF`) accents, Apple Green (`#30D158`) active indicators, and Apple Orange (`#FF9F0A`) tail alerts.
+  - Smooth rounded pill buttons and modern track sliders with circular white thumbs and progress fill.
+- **Small Monitor Cutoff Fix**:
+  - Window client height reduced to **630px** (fits comfortably on 1080p at 125%/150% scaling and 768p laptop displays).
+  - Automatically queries and adapts within `SystemParametersInfo(SPI_GETWORKAREA)` to guarantee no controls, buttons, or sliders get cut off.
+  - Window automatically centers on your primary work area upon launch.
+- **Apple-Style Segmented Navigation**:
+  - **`[ Recoil Tuning ]`**: Clean two-column card layout dividing **Sensitivity & Timing** (Master, V/H scale, RPM, Steps, Jitter) and **Stabilization & Dynamics** (V/H decay, decay start shot, kick boost & duration, 45-mag tail vertical & sideways).
+  - **`[ Pattern & Vision ]`**: Anti-aliased 45-shot trajectory curve plot, live bullet firing telemetry, steady-state drift readouts, and screenshot auto-calibration.
+  - **`[ Presets & Config ]`**: Weapon preset profile library with inline renaming, toggle hotkey picker, ADS requirement switch, and in-game Gunsmith build code import/export.
+- **Header Quick-Bar**:
+  - Cycle presets with `[◄]` and `[►]` buttons directly from any tab.
+  - Prominent master status pill (`ACTIVE` / `STANDBY`).
+- **Interactive Machine Vision Review**:
+  - `DFCalibWnd` cross-validation modal styled in matching macOS Dark Mode. Inspect and fine-tune mannequin grey/green detection dots in real time.
+
+---
 
 ## Features
 
-- **Spacious Two-Column Dashboard**: Clean, modern dark-themed UI designed for clarity without compacting or cutting off controls.
-- **Master Recoil Scale**: Global multiplier slider scaling overall compensation strength up or down in one place.
-- **Vertical & Horizontal Recoil Decay**: Separate per-bullet strength loss sliders (+ weakens pull, - strengthens; decays down to 0% strength) to counter weapon stabilization during full-auto spray.
-- **Auto-Calibrate from Screenshot**: Paste (`Ctrl+V`) or select in-game Gunsmith mannequin screenshots. The system extracts base grey dots (trajectory path) and green dots (loadout spread tightness), computes exact vertical/horizontal compression ratios, and builds a calibrated profile.
-- **Machine Vision Cross-Validation**: Interactive overlay showing detected dots and trajectory curves with click-to-add/delete dot corrections.
-- **Universal Presets & Build Codes**: Create, delete, switch, and save weapon profiles with built-in Gunsmith modification build codes and one-click clipboard copying.
-- **Dedicated Save & Auto-Save**: Quick Save button right next to presets, plus automatic preset persistence on exit.
-- **Natural Smoothing & Kick Boost**: Bézier-interpolated micro-stepping, initial kick decay curve, and humanized jitter.
-- **Hotkey & ADS-By-Default**: Default requirement to aim down sights (Hold RMB) with toggle hotkey (default: F6).
+- **Zero-Dependency Native Binary**: Single lightweight executable (`DFRecoil.exe`, ~470 KB) with native GDI+ image processing and sub-millisecond timer resolution (`timeBeginPeriod(1)`).
+- **Master Recoil Multiplier & Independent Axis Scaling**: Global scale slider plus discrete vertical and horizontal multipliers.
+- **Vertical & Horizontal Spray Decay**: Counters gun stabilization during full-auto spray (+ weakens pull, - strengthens).
+- **Extended Magazine Tail Compensation**: Configurable vertical (`tailV`) and sideways (`tailH`) compensation applied past pattern dots for 45-round and drum magazines.
+- **Auto-Calibrate from Screenshot**: Paste (`Ctrl+V`) or drag-and-drop an in-game Gunsmith mannequin screenshot to detect base grey dots (trajectory path) and green dots (loadout spread tightness), compute compression ratios, and generate calibrated recoil curves.
+- **Gunsmith Build Code Sharing**: Copy and paste weapon attachment build codes directly between the app and Delta Force.
+- **Keyboard Shortcuts**:
+  - `1`, `2`, `3`: Switch between Recoil Tuning, Pattern & Vision, and Presets & Config tabs.
+  - `F2` / Double-click: Rename active weapon profile.
+  - `Ctrl+V`: Paste screenshot from clipboard.
+  - `F6` (configurable): Toggle recoil compensation on/off.
 
-## Installation & Quick Start
+---
 
-1. Download `DF-Recoil.zip` from the [Releases](https://github.com/Velgoh/DF-Recoil/releases) page.
-2. Extract the folder anywhere on your PC.
-3. Double-click **`Start DF-Recoil.bat`** (automatically checks and installs requirements if needed).
-4. Select or create your weapon preset, paste a Gunsmith screenshot to auto-calibrate, and toggle with **F6** in-game!
+## Quick Start
 
-## Project Structure
+1. Download **`DFRecoil.exe`** and **`presets.ini`** from the [Releases](https://github.com/Velgoh/DF-Recoil/releases) page.
+2. Run `DFRecoil.exe`.
+3. Select your weapon preset (or create a new one).
+4. Paste (`Ctrl+V`) a screenshot of your Gunsmith test target to auto-calibrate.
+5. In game, press **F6** to toggle assistance (requires holding **Right Mouse Button** to aim down sights by default).
 
-```
-DF-Recoil/
-├── Start DF-Recoil.bat        # Auto-launch script with dependency check
-├── README.md
-├── core/
-│   ├── app.py                # Main application & GUI
-│   ├── extractor.py          # Machine vision dot extraction & pattern matching
-│   ├── presets.json          # Weapon presets and tuning parameters
-│   ├── config.json           # Active preset configuration
-│   ├── pattern.json          # Calibrated recoil curve profile
-│   ├── requirements.txt      # Python package requirements
-│   ├── test_verification.py  # Unit test suite
-│   └── test_comprehensive.py # Vision & engine validation suite
+---
+
+## Building from Source
+
+Requires Visual Studio 2022 Build Tools (or Community edition):
+
+```cmd
+build.bat
 ```
 
+Compiles `src\main.cpp` using MSVC with `/O2 /EHsc /W3 /utf-8` linked against `gdiplus.lib`, `gdi32.lib`, `user32.lib`, `comdlg32.lib`, `winmm.lib`, and `shell32.lib`.
+
+---
+
+## Testing & Verification
+
+Run headless screenshot verification across your test suite:
+
+```cmd
+DFRecoil.exe --test
+```
+
+Or test a specific screenshot:
+
+```cmd
+DFRecoil.exe --test "path\to\screenshot.png"
+```

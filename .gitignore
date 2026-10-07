@@ -1,7 +1,8 @@
-__pycache__/
-*.py[cod]
-*$py.class
-*.log
-*.zip
-.vscode/
-.idea/
+build/
+*.obj
+*.tmp
+*.bak
+test_out.txt
+.vs/
+presets.ini.user_backup
+DFRecoil.exe
