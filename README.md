@@ -2,7 +2,7 @@
 
 A high-performance standalone Win32/C++ recoil compensation engine and weapon profile manager for Delta Force.
 
-Written in native C++ with zero runtime dependencies (no Python, no OpenCV). Features an overhaul with Persona 5 dark purple aesthetic, halftone backdrop, -4.5° skewed polygon cards, diamond sliders, trajectory curve plotting, and machine-vision dot calibration.
+Written in native C++ with zero runtime dependencies (no Python, no OpenCV). Features a comprehensive UI overhaul with dark purple palette, halftone backdrop, -4.5° skewed polygon cards, diamond sliders, trajectory curve plotting, and machine-vision dot calibration.
 
 ---
 
@@ -30,7 +30,7 @@ Written in native C++ with zero runtime dependencies (no Python, no OpenCV). Fea
    - Directly copy and paste weapon attachment build codes between the app and Delta Force to keep profiles aligned with your in-game loadouts.
 
 5. **Interface**:
-   - Dark Purple palette: Midnight Abyss background (`#0a0714`), Obsidian Violet card containers (`#140d24`), Electric Violet borders (`#8a2be2`), Neon Magenta accents (`#e024c3`), Atlus Yellow highlights (`#ffe600`), and pure white/comic black contrast.
+   - Dark purple palette: Midnight Abyss background (`#0a0714`), Obsidian Violet card containers (`#140d24`), Electric Violet borders (`#8a2be2`), Neon Magenta accents (`#e024c3`), vivid yellow highlights (`#ffe600`), and pure white/comic black contrast.
    - Halftone dot matrix backdrop with comic diagonal edge slashes.
    - -4.5° skewed polygon cards with 3.0px solid black ink borders and 6.0px comic drop shadows.
    - Tilted ransom-note header badges (`[DF-RECOIL]` and `[YONAH]`).
@@ -53,7 +53,7 @@ Written in native C++ with zero runtime dependencies (no Python, no OpenCV). Fea
 | **Initial Kick** | `1.00x` | Multiplier for first-shot muzzle rise |
 | **Kick Duration** | `3 shots` | Number of shots over which initial kick decays |
 | **Tabs** | `1`, `2`, `3` | Quick-switch between Recoil, Trajectory, and Presets |
-| **Rename Preset** | `F2` / Double-click | Inline renaming of active weapon preset |
+| **Rename Preset** | `F2` or Double-click | Inline renaming of active weapon preset |
 | **Paste Target** | `Ctrl+V` | Paste screenshot from clipboard for calibration |
 
 Configuration and weapon profiles are saved automatically to `presets.ini`.

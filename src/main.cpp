@@ -686,19 +686,19 @@ static DWORD WINAPI workerThread(LPVOID) {
 // ============================================================ UI helpers (Persona 5 Dark Mode)
 struct SliderDef { const char* label; double Preset::*field; double lo, hi, step; const char* fmt; };
 static const SliderDef kSliders[] = {
-    {"MASTER SCALE", &Preset::master, 0.10, 6.0, 0.01, "%.2fx"},
-    {"VERTICAL SCALE", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"HORIZONTAL SCALE", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"VERTICAL DECAY", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"HORIZONTAL DECAY", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"DECAY START SHOT", &Preset::decayStart, 0, 45, 1, "%.0f"},
-    {"INITIAL KICK", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fx"},
-    {"KICK DURATION", &Preset::kickShots, 1, 15, 1, "%.0f shots"},
-    {"FIRE RATE (RPM)", &Preset::rpm, 200, 1500, 1, "%.0f RPM"},
-    {"SMOOTHING STEPS", &Preset::steps, 3, 50, 1, "%.0f steps"},
-    {"JITTER", &Preset::jitter, 0.0, 1.5, 0.01, "+/- %.2f px"},
-    {"TAIL VERTICAL", &Preset::tailV, 0, 300, 1, "%.0f %%"},
-    {"TAIL HORIZONTAL", &Preset::tailH, -100, 300, 1, "%.0f %%"},
+    {"MASTER SCALE", &Preset::master, 0.10, 6.0, 0.01, "%.2fX"},
+    {"VERTICAL SCALE", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fX"},
+    {"HORIZONTAL SCALE", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fX"},
+    {"VERTICAL DECAY", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f%% PER SHOT"},
+    {"HORIZONTAL DECAY", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f%% PER SHOT"},
+    {"DECAY START SHOT", &Preset::decayStart, 0, 45, 1, "%.0F"},
+    {"INITIAL KICK", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fX"},
+    {"KICK DURATION", &Preset::kickShots, 1, 15, 1, "%.0F SHOTS"},
+    {"FIRE RATE RPM", &Preset::rpm, 200, 1500, 1, "%.0F RPM"},
+    {"SMOOTHING STEPS", &Preset::steps, 3, 50, 1, "%.0F STEPS"},
+    {"JITTER", &Preset::jitter, 0.0, 1.5, 0.01, "+- %.2F PX"},
+    {"TAIL VERTICAL", &Preset::tailV, 0, 300, 1, "%.0F%%"},
+    {"TAIL HORIZONTAL", &Preset::tailH, -100, 300, 1, "%.0F%%"},
 };
 static const int kNumSliders = (int)(sizeof(kSliders) / sizeof(kSliders[0]));
 
@@ -1312,7 +1312,7 @@ static std::string sliderText(int i) {
     std::string s = b;
     if (kSliders[i].field == &Preset::rpm) {
         double rVal = max(1.0, sliderValue(i));
-        char r[40]; snprintf(r, sizeof r, " · %.0f ms", 60000.0 / rVal); s += r;
+        char r[40]; snprintf(r, sizeof r, " · %.0F MS", 60000.0 / rVal); s += r;
     }
     return s;
 }
@@ -1403,15 +1403,15 @@ static void drawPlot(Gdiplus::Graphics& g, HDC dc) {
     float legX = (float)(rcPlot.left + 16);
 
     g.FillEllipse(&brNormal, legX, legY - 3.5f, 7.0f, 7.0f);
-    text(dc, "Base", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
+    text(dc, "BASE", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
     legX += 65.0f;
 
     g.FillEllipse(&brTail, legX, legY - 3.5f, 7.0f, 7.0f);
-    text(dc, "Extended Tail", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
+    text(dc, "EXTENDED TAIL", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
     legX += 110.0f;
 
     g.FillEllipse(&brLive, legX, legY - 3.5f, 7.0f, 7.0f);
-    text(dc, "Active Bullet", (int)(legX + 12), (int)(legY - 7), fSmall, cMagenta);
+    text(dc, "ACTIVE BULLET", (int)(legX + 12), (int)(legY - 7), fSmall, cMagenta);
 }
 
 static void paint(HDC dc, RECT cr) {
@@ -1556,13 +1556,13 @@ static void paint(HDC dc, RECT cr) {
         drawChamferRect(g, rcTelem.left, rcTelem.top, rcTelem.right - rcTelem.left, rcTelem.bottom - rcTelem.top, 6, gdColor(cBorder), 1.0f);
         Pattern pat = patternFor(P);
         char tb[256];
-        snprintf(tb, sizeof tb, "Pattern: %d Shots · %s Mode", (int)pat.shots.size(), pat.classic ? "Classic" : "Smooth");
+        snprintf(tb, sizeof tb, "PATTERN: %d SHOTS · %s", (int)pat.shots.size(), pat.classic ? "CLASSIC" : "SMOOTH");
         text(dc, tb, rcTelem.left + 16, rcTelem.top + 14, fSmallBold, cTextPrimary);
 
-        snprintf(tb, sizeof tb, "Compression: Vx%.2f · Hx%.2f (%d%% Sync)", P.vRatio, P.hRatio, P.matchPct);
+        snprintf(tb, sizeof tb, "COMPRESSION: VX%.2f · HX%.2f · %d%% SYNC", P.vRatio, P.hRatio, P.matchPct);
         text(dc, tb, rcTelem.left + 16, rcTelem.top + 38, fSmall, cTextSecondary);
 
-        snprintf(tb, sizeof tb, "Steady Drift: dx %+.2f, dy %+.2f · Decay: V %+.1f%%, H %+.1f%%", pat.tail.dx, pat.tail.dy, P.vDecay, P.hDecay);
+        snprintf(tb, sizeof tb, "STEADY DRIFT: DX %+.2f DY %+.2f · DECAY: V %+.1f%% H %+.1f%%", pat.tail.dx, pat.tail.dy, P.vDecay, P.hDecay);
         text(dc, tb, rcTelem.left + 16, rcTelem.top + 62, fSmall, cTextSecondary);
 
         int live = g_liveBullet;
@@ -1575,7 +1575,7 @@ static void paint(HDC dc, RECT cr) {
 
         // Right side buttons
         pillButton(g, dc, rcSelect, "SELECT IMAGE", cCardInner, cTextPrimary, cBorder, true, fBtn);
-        pillButton(g, dc, rcPaste, "PASTE (CTRL+V)", cCardInner, cTextPrimary, cBorder, true, fBtn);
+        pillButton(g, dc, rcPaste, "PASTE CLIPBOARD", cCardInner, cTextPrimary, cBorder, true, fBtn);
         pillButton(g, dc, rcCalib, "CALIBRATE", cMagenta, cTextPrimary, cMagentaHover, true, fBtn);
         pillButton(g, dc, rcCross, "REVIEW DOTS", cCardInner, cTextSecondary, cBorder, true, fBtn);
         pillButton(g, dc, rcMode, P.patternMode == 1 ? "MODE: CLASSIC" : "MODE: SMOOTH", cCardInner, cViolet, cBorder, true, fBtn);
@@ -1586,7 +1586,7 @@ static void paint(HDC dc, RECT cr) {
 
         // Sync pill
         char sb[128];
-        snprintf(sb, sizeof sb, "%d%% Synchronized", P.matchPct);
+        snprintf(sb, sizeof sb, "%d%% SYNCHRONIZED", P.matchPct);
         COLORREF syncCol = (P.matchPct >= 80 ? cGreen : cOrange);
         pillButton(g, dc, RECT{rcBadge.left + 16, rcBadge.top + 14, rcBadge.left + 180, rcBadge.top + 46}, sb, cCard, syncCol, cBorder, true, fSmallBold);
 
@@ -1597,27 +1597,27 @@ static void paint(HDC dc, RECT cr) {
         int yRow3 = yRow2 + 26;
 
         char buf[64];
-        snprintf(buf, sizeof buf, "Vertical Ratio: x%.2f", P.vRatio);
+        snprintf(buf, sizeof buf, "VERTICAL RATIO: X%.2f", P.vRatio);
         text(dc, buf, rcBadge.left + 16, yRow1, fSmall, cTextSecondary);
-        snprintf(buf, sizeof buf, "Horizontal Ratio: x%.2f", P.hRatio);
+        snprintf(buf, sizeof buf, "HORIZONTAL RATIO: X%.2f", P.hRatio);
         text(dc, buf, colMid + 10, yRow1, fSmall, cTextSecondary);
 
-        snprintf(buf, sizeof buf, "Base Grey Dots: %d", (int)P.grey.size());
+        snprintf(buf, sizeof buf, "BASE GREY DOTS: %d", (int)P.grey.size());
         text(dc, buf, rcBadge.left + 16, yRow2, fSmall, cTextSecondary);
-        snprintf(buf, sizeof buf, "Loadout Green Dots: %d", (int)P.green.size());
+        snprintf(buf, sizeof buf, "LOADOUT GREEN DOTS: %d", (int)P.green.size());
         text(dc, buf, colMid + 10, yRow2, fSmall, cTextSecondary);
 
-        snprintf(buf, sizeof buf, "Initial Kick: %.2fx", P.calKick);
+        snprintf(buf, sizeof buf, "INITIAL KICK: %.2fX", P.calKick);
         text(dc, buf, rcBadge.left + 16, yRow3, fSmall, cTextSecondary);
-        snprintf(buf, sizeof buf, "Kick Decay: %.0f shots", P.calKickShots);
+        snprintf(buf, sizeof buf, "KICK DECAY: %.0F SHOTS", P.calKickShots);
         text(dc, buf, colMid + 10, yRow3, fSmall, cTextSecondary);
 
         int srcY = yRow3 + 34;
         if (g_hasSrc) {
-            std::string srcLabel = "Source: " + g_srcName;
+            std::string srcLabel = "SOURCE: " + g_srcName;
             text(dc, srcLabel, rcBadge.left + 16, srcY, fSmall, cMagenta);
         } else {
-            text(dc, "Paste screenshot or drop image to calibrate.", rcBadge.left + 16, srcY, fSmall, cTextMuted);
+            text(dc, "DROP SCREENSHOT OR PASTE CLIPBOARD TO CALIBRATE", rcBadge.left + 16, srcY, fSmall, cTextMuted);
         }
     } else if (g_tab == 2) {
         // Tab 2: Presets & Settings
@@ -1659,7 +1659,7 @@ static void paint(HDC dc, RECT cr) {
         pillButton(g, dc, rcHotkey, hotkeyName(P.hotkey), cCardInner, cMagenta, cBorderHi, true, fBtn);
 
         // Row 2: ADS toggle
-        text(dc, "REQUIRE AIM DOWN SIGHTS (ADS)", rcCardRight.left + 20, rcAds.top + 6, fLabelBold, cTextPrimary);
+        text(dc, "REQUIRE AIM DOWN SIGHTS", rcCardRight.left + 20, rcAds.top + 6, fLabelBold, cTextPrimary);
         drawAppleSwitch(g, rcAdsSwitch, P.requireAds);
 
         // Row 3: Gunsmith Build Code
@@ -1711,13 +1711,13 @@ static void applyCalibration(const std::vector<Dot>& green, const std::vector<Do
     p.matchPct = matchPercent(grey.size(), green.size());
     int delay = (int)std::lround(60000.0 / max(1.0, p.rpm));
     char b[256];
-    snprintf(b, sizeof b, "Calibrated %d shots @ %.0f RPM (%dms) | Ratio: Vx%.2f Hx%.2f (%d%% Sync)",
+    snprintf(b, sizeof b, "CALIBRATED %d SHOTS @ %.0f RPM · %dMS · RATIO: VX%.2F HX%.2F · %d%% SYNC",
              (int)max(green.size(), grey.size()), p.rpm, delay, p.vRatio, p.hRatio, p.matchPct);
     p.badge = b;
     syncEngine();
     savePresets();
     savePatternJson(p, patternFor(p));
-    snprintf(b, sizeof b, "Calibration applied to '%s': V scale %.2f, H scale %.2f, kick %.2fx / %d shots.",
+    snprintf(b, sizeof b, "Calibration applied to '%s': V scale %.2f, H scale %.2f, kick %.2fx in %d shots.",
              p.name.c_str(), p.vScale, p.hScale, p.kickMult, (int)p.kickShots);
     g_status = b;
     if (g_hwnd) InvalidateRect(g_hwnd, nullptr, FALSE);
@@ -1757,14 +1757,19 @@ static void paintCalib(HDC dc, RECT cr) {
     DeleteObject(penSep);
 
     size_t ng = g_cw.grey.size(), nn = g_cw.green.size();
-    char b[256];
-    snprintf(b, sizeof b, "PATTERN CROSS-VALIDATION");
-    text(dc, b, 24, 14, fSection, cTextPrimary);
+    drawRansomBadge(g, "CALIBRATION", 80.0f, 32.0f, 114.0f, 28.0f, -2.0f,
+                    Gdiplus::Color(255, 224, 36, 195), Gdiplus::Color(255, 255, 255, 255),
+                    g_pFontImpactHeader, 3.0f);
+    drawRansomBadge(g, "CROSS-VALIDATION", 226.0f, 32.0f, 154.0f, 28.0f, 1.5f,
+                    Gdiplus::Color(255, 20, 13, 36), Gdiplus::Color(255, 255, 230, 0),
+                    g_pFontImpactHeader, 3.0f);
 
     double vr = 1, hr = 1;
     if (ng >= 2 && nn >= 1) compressionRatios(g_cw.grey, g_cw.green, vr, hr);
-    snprintf(b, sizeof b, "%d Base Dots · %d Loadout Dots (%d%% Match)  ·  Ratio: Vx%.2f Hx%.2f", (int)ng, (int)nn, matchPercent(ng, nn), vr, hr);
-    text(dc, b, 24, 38, fSmall, cMagenta);
+    char b[256];
+    snprintf(b, sizeof b, "%d BASE DOTS · %d LOADOUT DOTS · %d%% MATCH · RATIO: VX%.2F HX%.2F",
+             (int)ng, (int)nn, matchPercent(ng, nn), vr, hr);
+    text(dc, b, 320, 22, fSmallBold, cLilac);
 
     const Image& im = g_lastExtract.crop;
     int dw = (int)(im.w * g_cw.scale), dh = (int)(im.h * g_cw.scale);
@@ -2026,10 +2031,10 @@ static void pasteScreenshot() {
         g_srcImage = img;
         g_hasSrc = true;
         g_srcName = srcName;
-        g_status = "Pasted image (" + std::to_string(img.w) + "x" + std::to_string(img.h) + "). Auto-calibrating...";
+        g_status = "Pasted image " + std::to_string(img.w) + "x" + std::to_string(img.h) + " · auto-calibrating...";
         runCalibration();
     } else {
-        g_status = "No image found on clipboard (copy an image or screenshot first).";
+        g_status = "No image found on clipboard · copy an image or screenshot first.";
         InvalidateRect(g_hwnd, nullptr, FALSE);
     }
 }
