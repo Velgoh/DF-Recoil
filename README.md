@@ -1,44 +1,42 @@
-# DF-Recoil v2.0 (C++ Native Rebuild)
+# DF-Recoil v2.1.0 (Atlus UI Overhaul)
 
-A high-performance, standalone Win32/C++ recoil compensator and weapon profile manager for **Delta Force**.
+A high-performance standalone Win32/C++ recoil compensator and weapon profile manager for **Delta Force**.
 
-Re-engineered from the ground up as a native C++ executable without Python or OpenCV runtime dependencies. Features an **Apple macOS Dark Mode inspired interface**, responsive monitor adaptation, Bézier-interpolated mouse movement, and machine vision dot calibration.
+Re-engineered as a native C++ executable with zero runtime dependencies (no Python, no OpenCV). Featuring an **Atlus (Persona / Metaphor) Dark Purple aesthetic** with razor-sharp angular chamfers, diamond sliders, responsive monitor adaptation, Bézier-interpolated mouse movement, and machine vision dot calibration.
 
 ---
 
-## What's New in v2.0 (Apple macOS Dark Mode & Compact Layout)
+## What's New in v2.1.0 (Atlus Metaphor UI Overhaul)
 
-- **Apple macOS Dark Mode Aesthetic**:
-  - Sleek dark graphite surfaces (`#1C1C1E`) with elevated secondary card containers (`#2C2C2E`) and subtle borders (`#3A3A3C`).
-  - Crisp ClearType `Segoe UI` typography with high legibility.
-  - Apple Blue (`#0A84FF`) accents, Apple Green (`#30D158`) active indicators, and Apple Orange (`#FF9F0A`) tail alerts.
-  - Smooth rounded pill buttons and modern track sliders with circular white thumbs and progress fill.
-- **Small Monitor Cutoff Fix**:
-  - Window client height reduced to **630px** (fits comfortably on 1080p at 125%/150% scaling and 768p laptop displays).
-  - Automatically queries and adapts within `SystemParametersInfo(SPI_GETWORKAREA)` to guarantee no controls, buttons, or sliders get cut off.
-  - Window automatically centers on your primary work area upon launch.
-- **Apple-Style Segmented Navigation**:
-  - **`[ Recoil Tuning ]`**: Clean two-column card layout dividing **Sensitivity & Timing** (Master, V/H scale, RPM, Steps, Jitter) and **Stabilization & Dynamics** (V/H decay, decay start shot, kick boost & duration, 45-mag tail vertical & sideways).
-  - **`[ Pattern & Vision ]`**: Anti-aliased 45-shot trajectory curve plot, live bullet firing telemetry, steady-state drift readouts, and screenshot auto-calibration.
-  - **`[ Presets & Config ]`**: Weapon preset profile library with inline renaming, toggle hotkey picker, ADS requirement switch, and in-game Gunsmith build code import/export.
-- **Header Quick-Bar**:
-  - Cycle presets with `[◄]` and `[►]` buttons directly from any tab.
-  - Prominent master status pill (`ACTIVE` / `STANDBY`).
-- **Interactive Machine Vision Review**:
-  - `DFCalibWnd` cross-validation modal styled in matching macOS Dark Mode. Inspect and fine-tune mannequin grey/green detection dots in real time.
+- **Atlus Dark Purple Palette**:
+  - Midnight Abyss background (`#0C0916`), obsidian-violet card surfaces (`#19112E`), and inset telemetry wells (`#0F0A1C`).
+  - Electric Violet borders (`#3E2664`) with high-voltage highlights (`#6B3DB0`).
+  - Atlus Signature Neon Magenta (`#E52DF0`) for active tabs, slider progress, and critical action buttons.
+  - Pale Lilac (`#D4C3F8`) and stark pure white (`#FFFFFF`) typography for maximum readability.
+- **Razor-Sharp Angular Chamfers & Slanted Geometry**:
+  - Replaced rounded pill buttons with 45° chamfered polygons and slanted ribbons.
+  - Custom Atlus diamond logo and angled switches.
+  - Diamond slider thumbs with neon magenta borders and active track progress fills.
+  - DWM immersive dark mode title bar integration (`DF-RECOIL // METAPHOR`).
+- **Streamlined Three-Tab Architecture**:
+  - **`[ RECOIL ]`**: Dual-column layout dividing **Sensitivity** (Master, V/H scale, RPM, Steps, Jitter) and **Stabilization** (V/H decay, decay start shot, kick boost & duration, 45-mag tail vertical & sideways).
+  - **`[ TRAJECTORY ]`**: Anti-aliased 45-shot trajectory curve plot, live bullet telemetry, steady drift vectors, and screenshot auto-calibration.
+  - **`[ PRESETS ]`**: Weapon preset profile library with inline renaming, toggle hotkey picker, ADS requirement switch, and in-game Gunsmith build code import/export.
+- **Interactive Vision Review**:
+  - `DFCalibWnd` cross-validation modal with live mannequin grey/green detection dot review in matching Atlus styling.
 
 ---
 
 ## Features
 
 - **Zero-Dependency Native Binary**: Single lightweight executable (`DFRecoil.exe`, ~470 KB) with native GDI+ image processing and sub-millisecond timer resolution (`timeBeginPeriod(1)`).
-- **Master Recoil Multiplier & Independent Axis Scaling**: Global scale slider plus discrete vertical and horizontal multipliers.
+- **Master Multiplier & Independent Axis Scaling**: Global scale slider plus discrete vertical and horizontal multipliers.
 - **Vertical & Horizontal Spray Decay**: Counters gun stabilization during full-auto spray (+ weakens pull, - strengthens).
 - **Extended Magazine Tail Compensation**: Configurable vertical (`tailV`) and sideways (`tailH`) compensation applied past pattern dots for 45-round and drum magazines.
 - **Auto-Calibrate from Screenshot**: Paste (`Ctrl+V`) or drag-and-drop an in-game Gunsmith mannequin screenshot to detect base grey dots (trajectory path) and green dots (loadout spread tightness), compute compression ratios, and generate calibrated recoil curves.
 - **Gunsmith Build Code Sharing**: Copy and paste weapon attachment build codes directly between the app and Delta Force.
 - **Keyboard Shortcuts**:
-  - `1`, `2`, `3`: Switch between Recoil Tuning, Pattern & Vision, and Presets & Config tabs.
+  - `1`, `2`, `3`: Switch between Recoil, Trajectory, and Presets tabs.
   - `F2` / Double-click: Rename active weapon profile.
   - `Ctrl+V`: Paste screenshot from clipboard.
   - `F6` (configurable): Toggle recoil compensation on/off.
@@ -63,7 +61,7 @@ Requires Visual Studio 2022 Build Tools (or Community edition):
 build.bat
 ```
 
-Compiles `src\main.cpp` using MSVC with `/O2 /EHsc /W3 /utf-8` linked against `gdiplus.lib`, `gdi32.lib`, `user32.lib`, `comdlg32.lib`, `winmm.lib`, and `shell32.lib`.
+Compiles `src\main.cpp` using MSVC with `/O2 /EHsc /W3 /utf-8` linked against `gdiplus.lib`, `gdi32.lib`, `user32.lib`, `comdlg32.lib`, `winmm.lib`, `shell32.lib`, and `dwmapi.lib`.
 
 ---
 
@@ -80,3 +78,7 @@ Or test a specific screenshot:
 ```cmd
 DFRecoil.exe --test "path\to\screenshot.png"
 ```
+
+---
+
+*Glory to mankind.*

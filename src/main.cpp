@@ -22,6 +22,7 @@
 using std::max;
 using std::min;
 #include <gdiplus.h>
+#include <dwmapi.h>
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "gdi32.lib")
@@ -29,6 +30,7 @@ using std::min;
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "dwmapi.lib")
 
 // ============================================================ data model
 struct Dot { float x, y; };
@@ -218,6 +220,18 @@ static Pattern patternFor(const Preset& p) {
     return a;
 }
 
+static std::string jsonEscape(const std::string& s) {
+    std::string o;
+    for (char c : s) {
+        if (c == '"') o += "\\\"";
+        else if (c == '\\') o += "\\\\";
+        else if (c == '\n') o += "\\n";
+        else if (c == '\r') o += "\\r";
+        else o += c;
+    }
+    return o;
+}
+
 static void savePatternJson(const Preset& p, const Pattern& pat) {
     std::string path = exeDir() + "pattern.json";
     std::ofstream f(path);
@@ -226,7 +240,7 @@ static void savePatternJson(const Preset& p, const Pattern& pat) {
     size_t magSize = max<size_t>(65, pat.shots.size());
     f << "{\n";
     f << "  \"description\": \"Delta Force Recoil Profile (Calibrated)\",\n";
-    f << "  \"gun\": \"" << p.name << "\",\n";
+    f << "  \"gun\": \"" << jsonEscape(p.name) << "\",\n";
     f << "  \"game\": \"Delta Force\",\n";
     f << "  \"magazine_size\": " << magSize << ",\n";
     f << "  \"base_fire_delay_ms\": " << delay << ",\n";
@@ -485,7 +499,11 @@ static void savePresets() {
         for (auto& p : g_presets) {
             std::string cleanBadge = p.badge;
             std::replace(cleanBadge.begin(), cleanBadge.end(), '\n', ' ');
-            f << "[" << p.name << "]\nbuild=" << p.buildCode << "\nrpm=" << p.rpm << "\nmaster=" << p.master
+            std::replace(cleanBadge.begin(), cleanBadge.end(), '\r', ' ');
+            std::string cleanBuild = p.buildCode;
+            std::replace(cleanBuild.begin(), cleanBuild.end(), '\n', ' ');
+            std::replace(cleanBuild.begin(), cleanBuild.end(), '\r', ' ');
+            f << "[" << p.name << "]\nbuild=" << cleanBuild << "\nrpm=" << p.rpm << "\nmaster=" << p.master
               << "\nvscale=" << p.vScale << "\nhscale=" << p.hScale << "\nvdecay=" << p.vDecay << "\nhdecay=" << p.hDecay
               << "\ndecaystart=" << p.decayStart << "\ntailv=" << p.tailV << "\ntailh=" << p.tailH
               << "\nsteps=" << p.steps << "\njitter=" << p.jitter << "\nkickmult=" << p.kickMult
@@ -494,6 +512,7 @@ static void savePresets() {
               << "\ncalkick=" << p.calKick << "\ncalkickshots=" << p.calKickShots << "\nmatch=" << p.matchPct
               << "\nbadge=" << cleanBadge << "\ngreen=" << dotsToStr(p.green) << "\ngrey=" << dotsToStr(p.grey) << "\n\n";
         }
+        if (!f.good()) return;
     }
     if (!MoveFileExA(tmp.c_str(), g_iniPath.c_str(), MOVEFILE_REPLACE_EXISTING)) {
         CopyFileA(tmp.c_str(), g_iniPath.c_str(), FALSE);
@@ -579,9 +598,12 @@ static std::atomic<int> g_liveBullet{-1};
 static HWND g_hwnd = nullptr;
 
 static void syncEngine() {
+    if (g_sel < 0 || g_sel >= (int)g_presets.size()) return;
+    Preset active = g_presets[g_sel];
+    Pattern pat = patternFor(active);
     EnterCriticalSection(&g_cs);
-    g_active = g_presets[g_sel];
-    g_pattern = patternFor(g_active);
+    g_active = std::move(active);
+    g_pattern = std::move(pat);
     LeaveCriticalSection(&g_cs);
 }
 
@@ -661,22 +683,22 @@ static DWORD WINAPI workerThread(LPVOID) {
     return 0;
 }
 
-// ============================================================ UI helpers (custom GDI & GDI+, Apple macOS Dark Mode)
+// ============================================================ UI helpers (Apple macOS Dark Mode)
 struct SliderDef { const char* label; double Preset::*field; double lo, hi, step; const char* fmt; };
 static const SliderDef kSliders[] = {
-    {"MASTER SCALE", &Preset::master, 0.10, 6.0, 0.01, "%.2fx"},
-    {"VERTICAL SCALE", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"HORIZONTAL SCALE", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"VERTICAL DECAY", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"HORIZONTAL DECAY", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"DECAY STARTS AT SHOT", &Preset::decayStart, 0, 45, 1, "%.0f"},
-    {"INITIAL KICK", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fx"},
-    {"KICK DURATION", &Preset::kickShots, 1, 15, 1, "%.0f shots"},
-    {"FIRE RATE (RPM)", &Preset::rpm, 200, 1500, 1, "%.0f RPM"},
-    {"SMOOTHING STEPS", &Preset::steps, 3, 50, 1, "%.0f steps"},
-    {"JITTER", &Preset::jitter, 0.0, 1.5, 0.01, "+/- %.2f px"},
-    {"TAIL VERTICAL (past last dot)", &Preset::tailV, 0, 300, 1, "%.0f %%"},
-    {"TAIL SIDEWAYS (past last dot)", &Preset::tailH, -100, 300, 1, "%.0f %%"},
+    {"Master Scale", &Preset::master, 0.10, 6.0, 0.01, "%.2fx"},
+    {"Vertical Scale", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fx"},
+    {"Horizontal Scale", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fx"},
+    {"Vertical Decay", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
+    {"Horizontal Decay", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
+    {"Decay Start Shot", &Preset::decayStart, 0, 45, 1, "%.0f"},
+    {"Initial Kick", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fx"},
+    {"Kick Duration", &Preset::kickShots, 1, 15, 1, "%.0f shots"},
+    {"Fire Rate (RPM)", &Preset::rpm, 200, 1500, 1, "%.0f RPM"},
+    {"Smoothing Steps", &Preset::steps, 3, 50, 1, "%.0f steps"},
+    {"Jitter", &Preset::jitter, 0.0, 1.5, 0.01, "+/- %.2f px"},
+    {"Tail Vertical", &Preset::tailV, 0, 300, 1, "%.0f %%"},
+    {"Tail Horizontal", &Preset::tailH, -100, 300, 1, "%.0f %%"},
 };
 static const int kNumSliders = (int)(sizeof(kSliders) / sizeof(kSliders[0]));
 
@@ -697,27 +719,32 @@ static const int kNumHotkeys = (int)(sizeof(kHotkeys) / sizeof(kHotkeys[0]));
 static int hotkeyIndex(int vk) { for (int i = 0; i < kNumHotkeys; i++) if (kHotkeys[i].vk == vk) return i; return 5; }
 static const char* hotkeyName(int vk) { return kHotkeys[hotkeyIndex(vk)].name; }
 
-// Apple macOS Dark Mode Palette
-static const COLORREF cBg = RGB(28, 28, 30);           // #1C1C1E Dark graphite background
-static const COLORREF cHeader = RGB(22, 22, 24);       // #161618 Top nav & bottom bar
-static const COLORREF cCard = RGB(44, 44, 46);         // #2C2C2E Card containers
-static const COLORREF cCardInner = RGB(34, 34, 36);    // #222224 Inset surfaces (plot, edit, badges)
-static const COLORREF cBorder = RGB(58, 58, 60);       // #3A3A3C Subtle borders & dividers
-static const COLORREF cBorderHi = RGB(72, 72, 74);     // #48484A Hover / highlighted borders
-static const COLORREF cBlue = RGB(10, 132, 255);       // #0A84FF Apple System Blue
-static const COLORREF cBlueHover = RGB(64, 156, 255);  // #409CFF
-static const COLORREF cGreen = RGB(48, 209, 88);       // #30D158 Apple System Green (Active/Sync)
-static const COLORREF cOrange = RGB(255, 159, 10);     // #FF9F0A Apple System Orange (Tail/Standby)
-static const COLORREF cRed = RGB(255, 69, 58);         // #FF453A Apple System Red (Destructive)
-static const COLORREF cTextPrimary = RGB(255, 255, 255);   // #FFFFFF Crisp primary text
-static const COLORREF cTextSecondary = RGB(220, 220, 225); // #DCDCE1 Secondary text
-static const COLORREF cTextMuted = RGB(142, 142, 147);     // #8E8E93 Muted text / captions
+// Atlus (Persona / Metaphor) Dark Purple Palette
+static const COLORREF cBg           = RGB(12, 9, 22);        // #0C0916 Midnight Abyss window background
+static const COLORREF cHeader       = RGB(18, 12, 34);       // #120C22 Top toolbar & header surface
+static const COLORREF cCard         = RGB(25, 17, 46);       // #19112E Card surfaces
+static const COLORREF cCardInner    = RGB(15, 10, 28);       // #0F0A1C Inset surfaces (plot, edit, badges)
+static const COLORREF cBorder       = RGB(62, 38, 100);      // #3E2664 Electric violet card borders
+static const COLORREF cBorderHi     = RGB(107, 61, 176);     // #6B3DB0 High-voltage violet border highlight
+static const COLORREF cBorderGlow   = RGB(217, 69, 240);     // #D945F0 Neon magenta glow
+static const COLORREF cBlue         = RGB(229, 45, 240);     // #E52DF0 Atlus Signature Neon Magenta
+static const COLORREF cBlueHover    = RGB(245, 85, 255);     // #F555FF
+static const COLORREF cMagenta      = RGB(229, 45, 240);     // #E52DF0 Atlus Neon Magenta
+static const COLORREF cMagentaHover = RGB(245, 85, 255);     // #F555FF
+static const COLORREF cViolet       = RGB(187, 88, 251);     // #BB58FB Electric Violet / Lilac
+static const COLORREF cCyan         = RGB(6, 198, 229);      // #06C6E5 Electric Cyan telemetry
+static const COLORREF cGreen        = RGB(48, 221, 135);     // #30DD87 Emerald active indicator
+static const COLORREF cOrange       = RGB(255, 145, 36);     // #FF9124 Warning / tail indicator
+static const COLORREF cRed          = RGB(245, 60, 94);      // #F53C5E Crimson alert
+static const COLORREF cTextPrimary  = RGB(255, 255, 255);    // #FFFFFF Stark pure white
+static const COLORREF cTextSecondary= RGB(212, 195, 248);    // #D4C3F8 Pale Lilac
+static const COLORREF cTextMuted    = RGB(140, 122, 178);    // #8C7AB2 Lavender mauve
 
 static inline Gdiplus::Color gdColor(COLORREF c, BYTE alpha = 255) {
     return Gdiplus::Color(alpha, GetRValue(c), GetGValue(c), GetBValue(c));
 }
 
-static HFONT fTitle, fSection, fLabel, fBig, fSmall, fSmallBold, fBtn, fTab;
+static HFONT fTitle, fSection, fLabel, fLabelBold, fBig, fSmall, fSmallBold, fBtn, fTab, fTabActive;
 static HBRUSH g_brEdit;
 static int g_dragSlider = -1, g_presetScroll = 0;
 static bool g_naming = false, g_settingText = false;
@@ -729,7 +756,7 @@ static Image g_srcImage; static bool g_hasSrc = false; static std::string g_srcN
 static Extract g_lastExtract; static bool g_hasExtract = false;
 
 // ------------------------------------------------------------ Layout Rectangles (Dynamic & Adaptive)
-static int g_tab = 0; // 0 = Recoil Tuning, 1 = Pattern & Vision, 2 = Presets & Config
+static int g_tab = 0; // 0 = Recoil, 1 = Trajectory & Vision, 2 = Presets & Settings
 static int g_clientW = 1080, g_clientH = 620;
 
 // Header rects
@@ -744,8 +771,6 @@ static RECT rcCardLeft{};
 static RECT rcCardRight{};
 
 // Tab 0: Recoil Tuning rects
-static RECT rcSaveInTuning{};
-static RECT rcReloadInTuning{};
 static RECT rcSliderRows[kNumSliders]{};
 static RECT rcSliderTracks[kNumSliders]{};
 
@@ -760,7 +785,7 @@ static RECT rcMode{};
 static RECT rcBadge{};
 
 // Tab 2: Presets & Config rects
-static const int PRESET_ROWS = 5, PRESET_H = 44;
+static const int PRESET_ROWS = 5, PRESET_H = 40;
 static RECT rcPresets{};
 static RECT rcNew{};
 static RECT rcDel{};
@@ -769,10 +794,10 @@ static RECT rcReset{};
 static RECT rcReload{};
 static RECT rcHotkey{};
 static RECT rcAds{};
+static RECT rcAdsSwitch{};
 static RECT rcBuildEdit{};
 static RECT rcCopyBuild{};
 static RECT rcPasteBuild{};
-static RECT rcGuide{};
 
 static bool inRect(const RECT& r, int x, int y) { return x >= r.left && x < r.right && y >= r.top && y < r.bottom; }
 
@@ -785,110 +810,104 @@ static void updateLayout(int w, int h) {
     if (w <= 0 || h <= 0) return;
     g_clientW = w; g_clientH = h;
 
-    // 1. Header Bar: y = 0..58
-    int bannerW = 140;
-    int bannerH = 36;
-    int bannerY = 12;
-    rcBanner = RECT{ w - 24 - bannerW, bannerY, w - 24, bannerY + bannerH };
+    // 1. Header Bar: y = 0..52
+    int bannerW = 136;
+    int bannerH = 32;
+    int bannerY = 10;
+    rcBanner = RECT{ w - 20 - bannerW, bannerY, w - 20, bannerY + bannerH };
 
-    int nextW = 30;
+    int nextW = 28;
     rcHeaderNext = RECT{ rcBanner.left - 8 - nextW, bannerY, rcBanner.left - 8, bannerY + bannerH };
 
-    int presetW = 156;
+    int presetW = 140;
     rcHeaderPreset = RECT{ rcHeaderNext.left - 4 - presetW, bannerY, rcHeaderNext.left - 4, bannerY + bannerH };
 
-    int prevW = 30;
+    int prevW = 28;
     rcHeaderPrev = RECT{ rcHeaderPreset.left - 4 - prevW, bannerY, rcHeaderPreset.left - 4, bannerY + bannerH };
 
-    // Segmented Tabs
-    int tabH = 36;
-    int tabW = 140;
+    // Apple Segmented Tabs (centered in window width, bounded by toolbar items)
+    int tabH = 32;
+    int tabW = 110;
     int totalTabW = 3 * tabW;
-    int tabX = (rcHeaderPrev.left + 230 - totalTabW) / 2;
-    if (tabX < 236) tabX = 236;
-    if (tabX + totalTabW > rcHeaderPrev.left - 10) tabX = max<int>(236, (int)(rcHeaderPrev.left - 10 - totalTabW));
+    int tabX = (w - totalTabW) / 2;
+    if (tabX < 170) tabX = 170;
+    if (tabX + totalTabW > rcHeaderPrev.left - 12) tabX = max<int>(170, (int)(rcHeaderPrev.left - 12 - totalTabW));
     rcTabs[0] = RECT{ tabX, bannerY, tabX + tabW, bannerY + tabH };
     rcTabs[1] = RECT{ tabX + tabW, bannerY, tabX + 2 * tabW, bannerY + tabH };
     rcTabs[2] = RECT{ tabX + 2 * tabW, bannerY, tabX + 3 * tabW, bannerY + tabH };
 
-    // 2. Footer Bar: height 34
-    int footerTop = h - 34;
+    // 2. Footer Bar: height 30
+    int footerTop = h - 30;
 
     // 3. Card Containers (Left & Right)
-    int cardMargin = 20;
-    int cardGap = 16;
-    int cardTop = 62;
-    int cardBottom = footerTop - 10;
+    int cardMargin = 16;
+    int cardGap = 12;
+    int cardTop = 54;
+    int cardBottom = footerTop - 8;
     int cardW = max(380, (w - 2 * cardMargin - cardGap) / 2);
     rcCardLeft = RECT{ cardMargin, cardTop, cardMargin + cardW, cardBottom };
     rcCardRight = RECT{ rcCardLeft.right + cardGap, cardTop, w - cardMargin, cardBottom };
 
-    // 4. Tab 0: Recoil Tuning
-    int btnH = 36;
-    int btnY = cardBottom - 12 - btnH;
-    int btnMid = (rcCardLeft.left + rcCardLeft.right) / 2;
-    rcSaveInTuning = RECT{ rcCardLeft.left + 20, btnY, btnMid - 6, btnY + btnH };
-    rcReloadInTuning = RECT{ btnMid + 6, btnY, rcCardLeft.right - 20, btnY + btnH };
+    // 4. Tab 0: Recoil Tuning (Equalized 7-row baseline across Sensitivity and Stabilization)
+    int colTop = cardTop + 48;
+    int colAvailH = cardBottom - 14 - colTop;
+    int colRowH = colAvailH / 7;
 
     // Column 1 Sliders (6 sliders)
-    int col1Top = cardTop + 54;
-    int col1AvailH = btnY - 8 - col1Top;
-    int col1RowH = col1AvailH / 6;
     for (int r = 0; r < 6; r++) {
         int i = kCol1Map[r];
-        int y = col1Top + r * col1RowH;
-        rcSliderRows[i] = RECT{ rcCardLeft.left + 20, y, rcCardLeft.right - 20, y + col1RowH };
-        rcSliderTracks[i] = RECT{ rcCardLeft.left + 20, y + 20, rcCardLeft.right - 20, y + 34 };
+        int y = colTop + r * colRowH;
+        rcSliderRows[i] = RECT{ rcCardLeft.left + 20, y, rcCardLeft.right - 20, y + colRowH };
+        rcSliderTracks[i] = RECT{ rcCardLeft.left + 20, y + 20, rcCardLeft.right - 20, y + 32 };
     }
 
     // Column 2 Sliders (7 sliders)
-    int col2Top = cardTop + 54;
-    int col2AvailH = cardBottom - 26 - col2Top; // reserve 26px for bottom hint text
-    int col2RowH = col2AvailH / 7;
     for (int r = 0; r < 7; r++) {
         int i = kCol2Map[r];
-        int y = col2Top + r * col2RowH;
-        rcSliderRows[i] = RECT{ rcCardRight.left + 20, y, rcCardRight.right - 20, y + col2RowH };
-        rcSliderTracks[i] = RECT{ rcCardRight.left + 20, y + 20, rcCardRight.right - 20, y + 34 };
+        int y = colTop + r * colRowH;
+        rcSliderRows[i] = RECT{ rcCardRight.left + 20, y, rcCardRight.right - 20, y + colRowH };
+        rcSliderTracks[i] = RECT{ rcCardRight.left + 20, y + 20, rcCardRight.right - 20, y + 32 };
     }
 
     // 5. Tab 1: Pattern & Vision
-    int plotTop = cardTop + 50;
-    int plotH = min(250, (cardBottom - plotTop - 20) * 58 / 100);
+    int plotTop = cardTop + 48;
+    int plotH = min(240, (cardBottom - plotTop - 20) * 56 / 100);
     rcPlot = RECT{ rcCardLeft.left + 20, plotTop, rcCardLeft.right - 20, plotTop + plotH };
-    rcTelem = RECT{ rcCardLeft.left + 20, rcPlot.bottom + 10, rcCardLeft.right - 20, cardBottom - 12 };
+    rcTelem = RECT{ rcCardLeft.left + 20, rcPlot.bottom + 8, rcCardLeft.right - 20, cardBottom - 12 };
 
-    int pvBtnTop = cardTop + 50;
+    int pvBtnTop = cardTop + 48;
     int pvHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
-    rcSelect = RECT{ rcCardRight.left + 20, pvBtnTop, rcCardRight.left + 20 + pvHalfW, pvBtnTop + 36 };
-    rcPaste = RECT{ rcSelect.right + 10, pvBtnTop, rcCardRight.right - 20, pvBtnTop + 36 };
-    rcCalib = RECT{ rcCardRight.left + 20, rcSelect.bottom + 10, rcCardRight.right - 20, rcSelect.bottom + 46 };
-    rcCross = RECT{ rcCardRight.left + 20, rcCalib.bottom + 10, rcCardRight.left + 20 + pvHalfW, rcCalib.bottom + 46 };
-    rcMode = RECT{ rcCross.right + 10, rcCalib.bottom + 10, rcCardRight.right - 20, rcCalib.bottom + 46 };
-    rcBadge = RECT{ rcCardRight.left + 20, rcCross.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
+    rcSelect = RECT{ rcCardRight.left + 20, pvBtnTop, rcCardRight.left + 20 + pvHalfW, pvBtnTop + 32 };
+    rcPaste = RECT{ rcSelect.right + 10, pvBtnTop, rcCardRight.right - 20, pvBtnTop + 32 };
+    rcCalib = RECT{ rcCardRight.left + 20, rcSelect.bottom + 8, rcCardRight.left + 20 + pvHalfW, rcSelect.bottom + 40 };
+    rcCross = RECT{ rcCalib.right + 10, rcSelect.bottom + 8, rcCardRight.right - 20, rcSelect.bottom + 40 };
+    rcMode = RECT{ rcCardRight.left + 20, rcCalib.bottom + 8, rcCardRight.right - 20, rcCalib.bottom + 40 };
+    rcBadge = RECT{ rcCardRight.left + 20, rcMode.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
 
     // 6. Tab 2: Presets & Config
-    int prTop = cardTop + 50;
+    int prTop = cardTop + 48;
     rcPresets = RECT{ rcCardLeft.left + 20, prTop, rcCardLeft.right - 20, prTop + PRESET_ROWS * PRESET_H };
-    int prBtnY1 = rcPresets.bottom + 10;
+    int prBtnY1 = rcPresets.bottom + 12;
     int prThirdW = (rcCardLeft.right - rcCardLeft.left - 40 - 16) / 3;
-    rcNew = RECT{ rcCardLeft.left + 20, prBtnY1, rcCardLeft.left + 20 + prThirdW, prBtnY1 + 34 };
-    rcDel = RECT{ rcNew.right + 8, prBtnY1, rcNew.right + 8 + prThirdW, prBtnY1 + 34 };
-    rcSave = RECT{ rcDel.right + 8, prBtnY1, rcCardLeft.right - 20, prBtnY1 + 34 };
-    int prBtnY2 = prBtnY1 + 40;
+    rcNew = RECT{ rcCardLeft.left + 20, prBtnY1, rcCardLeft.left + 20 + prThirdW, prBtnY1 + 32 };
+    rcDel = RECT{ rcNew.right + 8, prBtnY1, rcNew.right + 8 + prThirdW, prBtnY1 + 32 };
+    rcSave = RECT{ rcDel.right + 8, prBtnY1, rcCardLeft.right - 20, prBtnY1 + 32 };
+    int prBtnY2 = prBtnY1 + 38;
     int prHalfW = (rcCardLeft.right - rcCardLeft.left - 40 - 10) / 2;
-    rcReset = RECT{ rcCardLeft.left + 20, prBtnY2, rcCardLeft.left + 20 + prHalfW, prBtnY2 + 34 };
-    rcReload = RECT{ rcReset.right + 10, prBtnY2, rcCardLeft.right - 20, prBtnY2 + 34 };
+    rcReset = RECT{ rcCardLeft.left + 20, prBtnY2, rcCardLeft.left + 20 + prHalfW, prBtnY2 + 32 };
+    rcReload = RECT{ rcReset.right + 10, prBtnY2, rcCardLeft.right - 20, prBtnY2 + 32 };
 
-    int cfgTop = cardTop + 50;
-    rcHotkey = RECT{ rcCardRight.left + 20, cfgTop, rcCardRight.right - 20, cfgTop + 36 };
-    rcAds = RECT{ rcCardRight.left + 20, rcHotkey.bottom + 10, rcCardRight.right - 20, rcHotkey.bottom + 46 };
-    int bldLblY = rcAds.bottom + 14;
-    rcBuildEdit = RECT{ rcCardRight.left + 20, bldLblY + 20, rcCardRight.right - 20, bldLblY + 54 };
+    int cfgTop = cardTop + 48;
+    int rowH = 46;
+    rcHotkey = RECT{ rcCardRight.right - 20 - 90, cfgTop, rcCardRight.right - 20, cfgTop + 32 };
+    int adsY = cfgTop + rowH;
+    rcAdsSwitch = RECT{ rcCardRight.right - 20 - 44, adsY + 4, rcCardRight.right - 20, adsY + 26 };
+    rcAds = RECT{ rcCardRight.left + 20, adsY, rcCardRight.right - 20, adsY + 32 };
+    int bldLblY = adsY + rowH + 8;
+    rcBuildEdit = RECT{ rcCardRight.left + 20, bldLblY + 26, rcCardRight.right - 20, bldLblY + 62 };
     int bldHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
-    rcCopyBuild = RECT{ rcCardRight.left + 20, rcBuildEdit.bottom + 10, rcCardRight.left + 20 + bldHalfW, rcBuildEdit.bottom + 44 };
-    rcPasteBuild = RECT{ rcCopyBuild.right + 10, rcBuildEdit.bottom + 10, rcCardRight.right - 20, rcBuildEdit.bottom + 44 };
-    rcGuide = RECT{ rcCardRight.left + 20, rcCopyBuild.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
+    rcCopyBuild = RECT{ rcCardRight.left + 20, rcBuildEdit.bottom + 12, rcCardRight.left + 20 + bldHalfW, rcBuildEdit.bottom + 46 };
+    rcPasteBuild = RECT{ rcCopyBuild.right + 10, rcBuildEdit.bottom + 12, rcCardRight.right - 20, rcBuildEdit.bottom + 46 };
 
     if (g_editBuild) {
         SetWindowPos(g_editBuild, nullptr,
@@ -899,71 +918,217 @@ static void updateLayout(int w, int h) {
     }
 }
 
-// ------------------------------------------------------------ GDI & GDI+ Drawing Helpers
-static void text(HDC dc, const std::string& s, int x, int y, HFONT f, COLORREF c, UINT fmt = DT_LEFT) {
+// ------------------------------------------------------------ GDI & GDI+ Drawing Helpers (Unicode & Apple HIG)
+static std::wstring toWString(const std::string& str) {
+    if (str.empty()) return L"";
+    int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), nullptr, 0);
+    if (sizeNeeded <= 0) return std::wstring(str.begin(), str.end());
+    std::wstring wstr(sizeNeeded, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), &wstr[0], sizeNeeded);
+    return wstr;
+}
+
+static void textW(HDC dc, const std::wstring& s, int x, int y, HFONT f, COLORREF c, UINT fmt = DT_LEFT) {
     SelectObject(dc, f); SetTextColor(dc, c); SetBkMode(dc, TRANSPARENT);
     RECT r{x, y, x + 1100, y + 60};
     if (fmt & DT_RIGHT) { r.left = x - 1100; r.right = x; }
-    DrawTextA(dc, s.c_str(), -1, &r, fmt | DT_NOPREFIX | DT_SINGLELINE);
+    DrawTextW(dc, s.c_str(), -1, &r, fmt | DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS);
 }
+
+static void text(HDC dc, const std::string& s, int x, int y, HFONT f, COLORREF c, UINT fmt = DT_LEFT) {
+    textW(dc, toWString(s), x, y, f, c, fmt);
+}
+
 static void textBox(HDC dc, const std::string& s, RECT r, HFONT f, COLORREF c) {
     SelectObject(dc, f); SetTextColor(dc, c); SetBkMode(dc, TRANSPARENT);
-    DrawTextA(dc, s.c_str(), -1, &r, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+    std::wstring ws = toWString(s);
+    DrawTextW(dc, ws.c_str(), -1, &r, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
 }
+
 static void fillRect(HDC dc, RECT r, COLORREF c) {
     HBRUSH b = CreateSolidBrush(c); FillRect(dc, &r, b); DeleteObject(b);
 }
 
-static void addRoundRectPath(Gdiplus::GraphicsPath& path, float x, float y, float w, float h, float r) {
-    float d = r * 2.0f;
-    if (d > w) d = w;
-    if (d > h) d = h;
-    path.AddArc(x, y, d, d, 180, 90);
-    path.AddArc(x + w - d, y, d, d, 270, 90);
-    path.AddArc(x + w - d, y + h - d, d, d, 0, 90);
-    path.AddArc(x, y + h - d, d, d, 90, 90);
+// ------------------------------------------------------------ Atlus Stylized Geometry & Drawing Helpers
+static void addChamferPath(Gdiplus::GraphicsPath& path, float x, float y, float w, float h, float c) {
+    if (c * 2 > w) c = w / 2;
+    if (c * 2 > h) c = h / 2;
+    path.AddLine(x, y + c, x + c, y);
+    path.AddLine(x + c, y, x + w - c, y);
+    path.AddLine(x + w - c, y, x + w, y + c);
+    path.AddLine(x + w, y + c, x + w, y + h - c);
+    path.AddLine(x + w, y + h - c, x + w - c, y + h);
+    path.AddLine(x + w - c, y + h, x + c, y + h);
+    path.AddLine(x + c, y + h, x, y + h - c);
+    path.AddLine(x, y + h - c, x, y + c);
     path.CloseFigure();
 }
 
-static void fillRoundRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int radius, Gdiplus::Color color) {
+static void fillChamferRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int cut, Gdiplus::Color color) {
     Gdiplus::GraphicsPath path;
-    addRoundRectPath(path, (float)x, (float)y, (float)w, (float)h, (float)radius);
+    addChamferPath(path, (float)x, (float)y, (float)w, (float)h, (float)cut);
     Gdiplus::SolidBrush brush(color);
     g.FillPath(&brush, &path);
 }
 
-static void drawRoundRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int radius, Gdiplus::Color color, float width = 1.0f) {
+static void drawChamferRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int cut, Gdiplus::Color color, float width = 1.0f) {
     Gdiplus::GraphicsPath path;
-    addRoundRectPath(path, (float)x, (float)y, (float)w, (float)h, (float)radius);
+    addChamferPath(path, (float)x, (float)y, (float)w, (float)h, (float)cut);
     Gdiplus::Pen pen(color, width);
     g.DrawPath(&pen, &path);
 }
 
+static void addSlantedPath(Gdiplus::GraphicsPath& path, float x, float y, float w, float h, float slant) {
+    path.AddLine(x + slant, y, x + w, y);
+    path.AddLine(x + w, y, x + w - slant, y + h);
+    path.AddLine(x + w - slant, y + h, x, y + h);
+    path.AddLine(x, y + h, x + slant, y);
+    path.CloseFigure();
+}
+
+static void fillSlantedPoly(Gdiplus::Graphics& g, int x, int y, int w, int h, float slant, Gdiplus::Color color) {
+    Gdiplus::GraphicsPath path;
+    addSlantedPath(path, (float)x, (float)y, (float)w, (float)h, slant);
+    Gdiplus::SolidBrush brush(color);
+    g.FillPath(&brush, &path);
+}
+
+static void drawSlantedPoly(Gdiplus::Graphics& g, int x, int y, int w, int h, float slant, Gdiplus::Color color, float width = 1.0f) {
+    Gdiplus::GraphicsPath path;
+    addSlantedPath(path, (float)x, (float)y, (float)w, (float)h, slant);
+    Gdiplus::Pen pen(color, width);
+    g.DrawPath(&pen, &path);
+}
+
+// Redirect classic rounded calls to Atlus razor-sharp chamfers
+static void fillRoundRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int radius, Gdiplus::Color color) {
+    fillChamferRect(g, x, y, w, h, (std::min)(5, radius), color);
+}
+
+static void drawRoundRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int radius, Gdiplus::Color color, float width = 1.0f) {
+    drawChamferRect(g, x, y, w, h, (std::min)(5, radius), color, width);
+}
+
+static void drawChevron(Gdiplus::Graphics& g, float cx, float cy, float size, bool pointsLeft, Gdiplus::Color color, float width = 1.8f) {
+    Gdiplus::Pen pen(color, width);
+    pen.SetStartCap(Gdiplus::LineCapRound);
+    pen.SetEndCap(Gdiplus::LineCapRound);
+    pen.SetLineJoin(Gdiplus::LineJoinRound);
+    float h = size * 0.7f;
+    if (pointsLeft) {
+        g.DrawLine(&pen, cx + size * 0.3f, cy - h, cx - size * 0.3f, cy);
+        g.DrawLine(&pen, cx - size * 0.3f, cy, cx + size * 0.3f, cy + h);
+    } else {
+        g.DrawLine(&pen, cx - size * 0.3f, cy - h, cx + size * 0.3f, cy);
+        g.DrawLine(&pen, cx + size * 0.3f, cy, cx - size * 0.3f, cy + h);
+    }
+}
+
+// Atlus Diamond Logo
+static void drawLogo(Gdiplus::Graphics& g, float cx, float cy, float size, Gdiplus::Color color) {
+    float r = size * 0.55f;
+    Gdiplus::PointF pts[4] = {
+        Gdiplus::PointF(cx, cy - r),
+        Gdiplus::PointF(cx + r, cy),
+        Gdiplus::PointF(cx, cy + r),
+        Gdiplus::PointF(cx - r, cy)
+    };
+    Gdiplus::SolidBrush fillBr(color);
+    g.FillPolygon(&fillBr, pts, 4);
+
+    // Inner diamond cutout
+    float inR = r * 0.45f;
+    Gdiplus::PointF inPts[4] = {
+        Gdiplus::PointF(cx, cy - inR),
+        Gdiplus::PointF(cx + inR, cy),
+        Gdiplus::PointF(cx, cy + inR),
+        Gdiplus::PointF(cx - inR, cy)
+    };
+    Gdiplus::SolidBrush innerBr(gdColor(cBg));
+    g.FillPolygon(&innerBr, inPts, 4);
+
+    // Accent slash
+    Gdiplus::Pen penSlash(gdColor(cTextPrimary), 1.2f);
+    g.DrawLine(&penSlash, cx - r - 2.0f, cy + r + 2.0f, cx + r + 2.0f, cy - r - 2.0f);
+}
+
+// Atlus Angular Toggle Switch
+static void drawAppleSwitch(Gdiplus::Graphics& g, const RECT& r, bool on) {
+    int w = r.right - r.left, h = r.bottom - r.top;
+    Gdiplus::Color trackCol = on ? gdColor(cMagenta) : gdColor(cCardInner);
+    fillChamferRect(g, r.left, r.top, w, h, 4, trackCol);
+    drawChamferRect(g, r.left, r.top, w, h, 4, on ? gdColor(cBorderGlow) : gdColor(cBorder), 1.2f);
+
+    float knobW = (float)(h - 6);
+    float knobX = on ? (float)(r.right - 3 - knobW) : (float)(r.left + 3);
+    float knobY = (float)(r.top + 3);
+
+    fillChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, gdColor(cTextPrimary));
+    drawChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, on ? gdColor(cMagenta) : gdColor(cBorder), 1.0f);
+}
+
+// Atlus Slanted Status Badge
+static void drawStatusPill(Gdiplus::Graphics& g, HDC dc, const RECT& r, bool active, const std::string& hotkey) {
+    int w = r.right - r.left, h = r.bottom - r.top;
+    Gdiplus::Color bg = active ? Gdiplus::Color(255, 38, 18, 56) : gdColor(cCardInner);
+    Gdiplus::Color border = active ? gdColor(cMagenta) : gdColor(cBorder);
+
+    fillChamferRect(g, r.left, r.top, w, h, 6, bg);
+    drawChamferRect(g, r.left, r.top, w, h, 6, border, active ? 1.6f : 1.0f);
+
+    float dotX = (float)(r.left + 14);
+    float dotY = (float)(r.top + h / 2);
+    if (active) {
+        Gdiplus::PointF arrow[3] = {
+            Gdiplus::PointF(dotX - 4.0f, dotY - 6.0f),
+            Gdiplus::PointF(dotX + 4.0f, dotY),
+            Gdiplus::PointF(dotX - 4.0f, dotY + 6.0f)
+        };
+        Gdiplus::SolidBrush dotBr(gdColor(cMagenta));
+        g.FillPolygon(&dotBr, arrow, 3);
+    } else {
+        Gdiplus::SolidBrush dotBr(gdColor(cTextMuted));
+        g.FillRectangle(&dotBr, dotX - 3.0f, dotY - 5.0f, 6.0f, 10.0f);
+    }
+    g.Flush();
+
+    std::string textStr = active ? ("ENGAGED · " + hotkey) : ("STANDBY · " + hotkey);
+    SelectObject(dc, fBtn);
+    SetTextColor(dc, active ? cTextPrimary : cTextSecondary);
+    SetBkMode(dc, TRANSPARENT);
+    RECT tr = RECT{ r.left + 26, r.top, r.right - 8, r.bottom };
+    std::wstring wText = toWString(textStr);
+    DrawTextW(dc, wText.c_str(), -1, &tr, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+}
+
+// Atlus Chamfered Button
 static void pillButton(Gdiplus::Graphics& g, HDC dc, const RECT& r, const std::string& label,
                        COLORREF bgCol, COLORREF textCol, COLORREF borderCol, bool hasBorder = true, HFONT font = nullptr) {
     int w = r.right - r.left, h = r.bottom - r.top;
-    int radius = min(14, h / 2);
-    fillRoundRect(g, r.left, r.top, w, h, radius, gdColor(bgCol));
+    fillChamferRect(g, r.left, r.top, w, h, 5, gdColor(bgCol));
     if (hasBorder) {
-        drawRoundRect(g, r.left, r.top, w, h, radius, gdColor(borderCol), 1.0f);
+        drawChamferRect(g, r.left, r.top, w, h, 5, gdColor(borderCol), 1.0f);
     }
     g.Flush();
     HFONT f = font ? font : fBtn;
     SelectObject(dc, f); SetTextColor(dc, textCol); SetBkMode(dc, TRANSPARENT);
     RECT tr = r;
-    DrawTextA(dc, label.c_str(), -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    std::wstring ws = toWString(label);
+    DrawTextW(dc, ws.c_str(), -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
 }
 
-static void cardContainer(Gdiplus::Graphics& g, HDC dc, const RECT& r, const std::string& title, const std::string& subtitle) {
+// Atlus Angular Card Container with Left Slash Ribbon
+static void cardContainer(Gdiplus::Graphics& g, HDC dc, const RECT& r, const std::string& title) {
     int w = r.right - r.left, h = r.bottom - r.top;
-    fillRoundRect(g, r.left, r.top, w, h, 12, gdColor(cCard));
-    drawRoundRect(g, r.left, r.top, w, h, 12, gdColor(cBorder), 1.0f);
+    fillChamferRect(g, r.left, r.top, w, h, 8, gdColor(cCard));
+    drawChamferRect(g, r.left, r.top, w, h, 8, gdColor(cBorder), 1.2f);
+
+    Gdiplus::SolidBrush ribbonBr(gdColor(cMagenta));
+    g.FillRectangle(&ribbonBr, r.left, r.top + 10, 4, 26);
     g.Flush();
     if (!title.empty()) {
-        text(dc, title, r.left + 20, r.top + 16, fSection, cTextPrimary);
-    }
-    if (!subtitle.empty()) {
-        text(dc, subtitle, r.left + 20, r.top + 42, fSmall, cTextMuted);
+        std::string atlusTitle = "▲ " + title;
+        text(dc, atlusTitle, r.left + 16, r.top + 14, fSection, cTextPrimary);
     }
 }
 
@@ -987,7 +1152,10 @@ static double sliderValue(int i) { return g_presets[g_sel].*kSliders[i].field; }
 static std::string sliderText(int i) {
     char b[64]; snprintf(b, sizeof b, kSliders[i].fmt, sliderValue(i));
     std::string s = b;
-    if (kSliders[i].field == &Preset::rpm) { char r[40]; snprintf(r, sizeof r, "  (%.0f ms)", 60000.0 / sliderValue(i)); s += r; }
+    if (kSliders[i].field == &Preset::rpm) {
+        double rVal = max(1.0, sliderValue(i));
+        char r[40]; snprintf(r, sizeof r, " · %.0f ms", 60000.0 / rVal); s += r;
+    }
     return s;
 }
 static void setSlider(int i, int mouseX) {
@@ -1013,8 +1181,8 @@ static void selectPreset(int idx) {
 
 // ============================================================ main window painting
 static void drawPlot(Gdiplus::Graphics& g, HDC dc) {
-    fillRoundRect(g, rcPlot.left, rcPlot.top, rcPlot.right - rcPlot.left, rcPlot.bottom - rcPlot.top, 8, gdColor(cCardInner));
-    drawRoundRect(g, rcPlot.left, rcPlot.top, rcPlot.right - rcPlot.left, rcPlot.bottom - rcPlot.top, 8, gdColor(cBorder), 1.0f);
+    fillChamferRect(g, rcPlot.left, rcPlot.top, rcPlot.right - rcPlot.left, rcPlot.bottom - rcPlot.top, 6, gdColor(cCardInner));
+    drawChamferRect(g, rcPlot.left, rcPlot.top, rcPlot.right - rcPlot.left, rcPlot.bottom - rcPlot.top, 6, gdColor(cBorder), 1.0f);
 
     const Preset& P = g_presets[g_sel];
     Pattern pat = patternFor(P);
@@ -1029,30 +1197,30 @@ static void drawPlot(Gdiplus::Graphics& g, HDC dc) {
     double ox = (rcPlot.left + rcPlot.right) / 2.0 - (minx + spanx / 2) * sc, oy = rcPlot.top + 16;
     int live = g_liveBullet;
 
-    // Subtle crosshair origin
+    // Origin crosshair
     Gdiplus::Pen penCross(gdColor(cBorder), 1.0f);
     g.DrawLine(&penCross, (float)ox - 8.0f, (float)oy, (float)ox + 8.0f, (float)oy);
     g.DrawLine(&penCross, (float)ox, (float)oy - 8.0f, (float)ox, (float)oy + 8.0f);
 
-    // Trajectory polyline
+    // Trajectory polyline (Electric Violet)
     std::vector<Gdiplus::PointF> linePts;
     for (size_t i = 1; i < pts.size(); i++) {
         float x = (float)(ox + pts[i].first * sc), y = (float)(oy + pts[i].second * sc);
         linePts.push_back(Gdiplus::PointF(x, y));
     }
     if (linePts.size() >= 2) {
-        Gdiplus::Pen penLine(gdColor(cBorderHi), 1.5f);
+        Gdiplus::Pen penLine(gdColor(cViolet), 2.0f);
         g.DrawLines(&penLine, linePts.data(), (INT)linePts.size());
     }
 
     // Dots
     Gdiplus::SolidBrush brNormal(gdColor(cTextMuted));
     Gdiplus::SolidBrush brTail(gdColor(cOrange));
-    Gdiplus::SolidBrush brLive(gdColor(cGreen));
+    Gdiplus::SolidBrush brLive(gdColor(cMagenta));
     Gdiplus::SolidBrush brLiveInner(gdColor(cTextPrimary));
     Gdiplus::Pen penNormal(gdColor(cBorder), 1.0f);
     Gdiplus::Pen penTail(gdColor(cOrange), 1.0f);
-    Gdiplus::Pen penLiveGlow(Gdiplus::Color(100, 48, 209, 88), 3.0f);
+    Gdiplus::Pen penLiveGlow(Gdiplus::Color(120, 229, 45, 240), 4.0f);
 
     for (int i = 1; i < (int)pts.size(); i++) {
         float x = (float)(ox + pts[i].first * sc), y = (float)(oy + pts[i].second * sc);
@@ -1064,17 +1232,28 @@ static void drawPlot(Gdiplus::Graphics& g, HDC dc) {
             g.FillEllipse(&brLive, x - 6.0f, y - 6.0f, 12.0f, 12.0f);
             g.FillEllipse(&brLiveInner, x - 2.5f, y - 2.5f, 5.0f, 5.0f);
         } else if (tail) {
-            g.FillEllipse(&brTail, x - 4.0f, y - 4.0f, 8.0f, 8.0f);
-            g.DrawEllipse(&penTail, x - 4.0f, y - 4.0f, 8.0f, 8.0f);
+            g.FillEllipse(&brTail, x - 3.5f, y - 3.5f, 7.0f, 7.0f);
+            g.DrawEllipse(&penTail, x - 3.5f, y - 3.5f, 7.0f, 7.0f);
         } else {
-            g.FillEllipse(&brNormal, x - 4.0f, y - 4.0f, 8.0f, 8.0f);
-            g.DrawEllipse(&penNormal, x - 4.0f, y - 4.0f, 8.0f, 8.0f);
+            g.FillEllipse(&brNormal, x - 3.5f, y - 3.5f, 7.0f, 7.0f);
+            g.DrawEllipse(&penNormal, x - 3.5f, y - 3.5f, 7.0f, 7.0f);
         }
     }
-    g.Flush();
 
-    // Legend
-    text(dc, "● Base dots    ● Tail (45-mag)    ● Live bullet", rcPlot.left + 16, rcPlot.bottom - 24, fSmall, cTextMuted);
+    // Vector Legend
+    float legY = (float)(rcPlot.bottom - 18);
+    float legX = (float)(rcPlot.left + 16);
+
+    g.FillEllipse(&brNormal, legX, legY - 3.5f, 7.0f, 7.0f);
+    text(dc, "Base", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
+    legX += 65.0f;
+
+    g.FillEllipse(&brTail, legX, legY - 3.5f, 7.0f, 7.0f);
+    text(dc, "Extended Tail", (int)(legX + 12), (int)(legY - 7), fSmall, cTextSecondary);
+    legX += 110.0f;
+
+    g.FillEllipse(&brLive, legX, legY - 3.5f, 7.0f, 7.0f);
+    text(dc, "Active Bullet", (int)(legX + 12), (int)(legY - 7), fSmall, cMagenta);
 }
 
 static void paint(HDC dc, RECT cr) {
@@ -1086,156 +1265,194 @@ static void paint(HDC dc, RECT cr) {
     fillRect(dc, cr, cBg);
 
     // 2. Header Bar
-    fillRect(dc, RECT{0, 0, cr.right, 58}, cHeader);
+    fillRect(dc, RECT{0, 0, cr.right, 52}, cHeader);
     HPEN penSep = CreatePen(PS_SOLID, 1, cBorder);
     HGDIOBJ opSep = SelectObject(dc, penSep);
-    MoveToEx(dc, 0, 58, nullptr);
-    LineTo(dc, cr.right, 58);
+    MoveToEx(dc, 0, 52, nullptr);
+    LineTo(dc, cr.right, 52);
     SelectObject(dc, opSep);
     DeleteObject(penSep);
 
-    // Left Title
-    text(dc, "DF-RECOIL", 24, 14, fTitle, cTextPrimary);
-    text(dc, "macOS Dark Edition · C++ Native", 25, 40, fSmall, cTextMuted);
+    // Left Title + Logo
+    drawLogo(g, 32.0f, 26.0f, 18.0f, gdColor(cMagenta));
+    text(dc, "DF-RECOIL // METAPHOR", 48, 17, fTitle, cTextPrimary);
 
-    // Center: Segmented Tab Control
-    fillRoundRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, (rcTabs[2].right - rcTabs[0].left) + 4, (rcTabs[0].bottom - rcTabs[0].top) + 4, 8, gdColor(cCardInner));
-    drawRoundRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, (rcTabs[2].right - rcTabs[0].left) + 4, (rcTabs[0].bottom - rcTabs[0].top) + 4, 8, gdColor(cBorder), 1.0f);
+    // Center: Atlus Segmented Tabs
+    int totalTabW = rcTabs[2].right - rcTabs[0].left;
+    int tabH = rcTabs[0].bottom - rcTabs[0].top;
+    fillChamferRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, totalTabW + 4, tabH + 4, 5, gdColor(cCardInner));
+    drawChamferRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, totalTabW + 4, tabH + 4, 5, gdColor(cBorder), 1.0f);
 
-    const char* tabNames[3] = {"Recoil Tuning", "Pattern & Vision", "Presets & Config"};
+    const char* tabNames[3] = {"RECOIL", "TRAJECTORY", "PRESETS"};
     for (int i = 0; i < 3; i++) {
         bool active = (g_tab == i);
         if (active) {
-            fillRoundRect(g, rcTabs[i].left, rcTabs[i].top, rcTabs[i].right - rcTabs[i].left, rcTabs[i].bottom - rcTabs[i].top, 6, gdColor(cBlue));
+            fillChamferRect(g, rcTabs[i].left, rcTabs[i].top, rcTabs[i].right - rcTabs[i].left, rcTabs[i].bottom - rcTabs[i].top, 4, gdColor(cMagenta));
+            drawChamferRect(g, rcTabs[i].left, rcTabs[i].top, rcTabs[i].right - rcTabs[i].left, rcTabs[i].bottom - rcTabs[i].top, 4, gdColor(cBorderGlow), 1.0f);
         }
         g.Flush();
-        SelectObject(dc, fTab);
+        SelectObject(dc, active ? fTabActive : fTab);
         SetTextColor(dc, active ? cTextPrimary : cTextMuted);
         SetBkMode(dc, TRANSPARENT);
         RECT tr = rcTabs[i];
-        DrawTextA(dc, tabNames[i], -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        std::wstring wName = toWString(tabNames[i]);
+        DrawTextW(dc, wName.c_str(), -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
     }
 
     // Right: Quick Preset Switcher
-    pillButton(g, dc, rcHeaderPrev, "◄", cCard, cTextSecondary, cBorder, true, fBtn);
+    fillChamferRect(g, rcHeaderPrev.left, rcHeaderPrev.top, rcHeaderPrev.right - rcHeaderPrev.left, rcHeaderPrev.bottom - rcHeaderPrev.top, 5, gdColor(cCard));
+    drawChamferRect(g, rcHeaderPrev.left, rcHeaderPrev.top, rcHeaderPrev.right - rcHeaderPrev.left, rcHeaderPrev.bottom - rcHeaderPrev.top, 5, gdColor(cBorder), 1.0f);
+    drawChevron(g, (float)(rcHeaderPrev.left + rcHeaderPrev.right) / 2.0f, (float)(rcHeaderPrev.top + rcHeaderPrev.bottom) / 2.0f, 6.0f, true, gdColor(cTextSecondary));
+
     std::string curPresetName = g_presets.empty() ? "" : g_presets[g_sel].name;
     pillButton(g, dc, rcHeaderPreset, curPresetName, cCard, cTextPrimary, cBorder, true, fBtn);
-    pillButton(g, dc, rcHeaderNext, "►", cCard, cTextSecondary, cBorder, true, fBtn);
 
-    // Master Enable / Standby Pill
+    fillChamferRect(g, rcHeaderNext.left, rcHeaderNext.top, rcHeaderNext.right - rcHeaderNext.left, rcHeaderNext.bottom - rcHeaderNext.top, 5, gdColor(cCard));
+    drawChamferRect(g, rcHeaderNext.left, rcHeaderNext.top, rcHeaderNext.right - rcHeaderNext.left, rcHeaderNext.bottom - rcHeaderNext.top, 5, gdColor(cBorder), 1.0f);
+    drawChevron(g, (float)(rcHeaderNext.left + rcHeaderNext.right) / 2.0f, (float)(rcHeaderNext.top + rcHeaderNext.bottom) / 2.0f, 6.0f, false, gdColor(cTextSecondary));
+
+    // Master Status Pill
     const Preset& P = g_presets[g_sel];
-    char bannerText[64];
-    snprintf(bannerText, sizeof bannerText, "%s (%s)", g_enabled ? "● ACTIVE" : "○ STANDBY", hotkeyName(P.hotkey));
-    if (g_enabled) {
-        pillButton(g, dc, rcBanner, bannerText, cGreen, RGB(0, 0, 0), cGreen, false, fBtn);
-    } else {
-        pillButton(g, dc, rcBanner, bannerText, cCard, cTextMuted, cBorder, true, fBtn);
-    }
+    drawStatusPill(g, dc, rcBanner, g_enabled, hotkeyName(P.hotkey));
 
     // 3. Tab Contents
     if (g_tab == 0) {
         // Tab 0: Recoil Tuning
-        cardContainer(g, dc, rcCardLeft, "SENSITIVITY & TIMING", "Core weapon scaling & fire-rate response");
-        cardContainer(g, dc, rcCardRight, "STABILIZATION & DYNAMICS", "Recoil decay, kick damping & 45-mag tail");
+        cardContainer(g, dc, rcCardLeft, "Sensitivity");
+        cardContainer(g, dc, rcCardRight, "Stabilization");
 
         // Column 1 Sliders
         for (int r = 0; r < 6; r++) {
             int i = kCol1Map[r];
             RECT rowRc = rcSliderRows[i];
-            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabel, cTextSecondary);
-            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabel, cBlue, DT_RIGHT);
+            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabelBold, cTextPrimary);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cMagenta, DT_RIGHT);
             RECT t = rcSliderTracks[i];
-            fillRoundRect(g, t.left, t.top + 4, t.right - t.left, 6, 3, gdColor(cBorder));
-            double f = (sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo);
+            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 5, 2, gdColor(cBorder));
+            double f = std::clamp((sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo), 0.0, 1.0);
             int kx = t.left + (int)(f * (t.right - t.left));
-            if (kx > t.left) fillRoundRect(g, t.left, t.top + 4, kx - t.left, 6, 3, gdColor(cBlue));
+            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 5, 2, gdColor(cMagenta));
+
+            // Atlus Diamond Thumb
+            float cy = (float)(t.top + 6);
+            float dSize = 7.0f;
+            Gdiplus::PointF dPts[4] = {
+                Gdiplus::PointF((float)kx, cy - dSize),
+                Gdiplus::PointF((float)kx + dSize, cy),
+                Gdiplus::PointF((float)kx, cy + dSize),
+                Gdiplus::PointF((float)kx - dSize, cy)
+            };
             Gdiplus::SolidBrush brThumb(gdColor(cTextPrimary));
-            g.FillEllipse(&brThumb, (float)(kx - 8), (float)(t.top + 7 - 8), 16.0f, 16.0f);
-            Gdiplus::Pen penThumb(Gdiplus::Color(255, 200, 200, 205), 1.0f);
-            g.DrawEllipse(&penThumb, (float)(kx - 8), (float)(t.top + 7 - 8), 16.0f, 16.0f);
+            g.FillPolygon(&brThumb, dPts, 4);
+            Gdiplus::Pen penThumb(gdColor(cMagenta), 1.6f);
+            g.DrawPolygon(&penThumb, dPts, 4);
         }
-        pillButton(g, dc, rcSaveInTuning, "SAVE PRESET", cBlue, cTextPrimary, cBlue, false, fBtn);
-        pillButton(g, dc, rcReloadInTuning, "RELOAD FROM DISK", cCardInner, cTextSecondary, cBorder, true, fBtn);
 
         // Column 2 Sliders
         for (int r = 0; r < 7; r++) {
             int i = kCol2Map[r];
             RECT rowRc = rcSliderRows[i];
-            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabel, cTextSecondary);
-            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabel, cBlue, DT_RIGHT);
+            text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabelBold, cTextPrimary);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cMagenta, DT_RIGHT);
             RECT t = rcSliderTracks[i];
-            fillRoundRect(g, t.left, t.top + 4, t.right - t.left, 6, 3, gdColor(cBorder));
-            double f = (sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo);
+            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 5, 2, gdColor(cBorder));
+            double f = std::clamp((sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo), 0.0, 1.0);
             int kx = t.left + (int)(f * (t.right - t.left));
-            if (kx > t.left) fillRoundRect(g, t.left, t.top + 4, kx - t.left, 6, 3, gdColor(cBlue));
+            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 5, 2, gdColor(cMagenta));
+
+            // Atlus Diamond Thumb
+            float cy = (float)(t.top + 6);
+            float dSize = 7.0f;
+            Gdiplus::PointF dPts[4] = {
+                Gdiplus::PointF((float)kx, cy - dSize),
+                Gdiplus::PointF((float)kx + dSize, cy),
+                Gdiplus::PointF((float)kx, cy + dSize),
+                Gdiplus::PointF((float)kx - dSize, cy)
+            };
             Gdiplus::SolidBrush brThumb(gdColor(cTextPrimary));
-            g.FillEllipse(&brThumb, (float)(kx - 8), (float)(t.top + 7 - 8), 16.0f, 16.0f);
-            Gdiplus::Pen penThumb(Gdiplus::Color(255, 200, 200, 205), 1.0f);
-            g.DrawEllipse(&penThumb, (float)(kx - 8), (float)(t.top + 7 - 8), 16.0f, 16.0f);
+            g.FillPolygon(&brThumb, dPts, 4);
+            Gdiplus::Pen penThumb(gdColor(cMagenta), 1.6f);
+            g.DrawPolygon(&penThumb, dPts, 4);
         }
-        text(dc, "Decay counters gun stabilization. Tail applies past pattern dots (45-mag).", rcCardRight.left + 20, rcCardRight.bottom - 24, fSmall, cTextMuted);
     } else if (g_tab == 1) {
-        // Tab 1: Pattern & Vision
-        cardContainer(g, dc, rcCardLeft, "COMPENSATION TRAJECTORY", "Bézier path with steady-state tail & real-time telemetry");
-        cardContainer(g, dc, rcCardRight, "MACHINE VISION AUTO-CALIBRATION", "Mannequin green & grey dot detection & compression math");
+        // Tab 1: Trajectory & Vision
+        cardContainer(g, dc, rcCardLeft, "Trajectory");
+        cardContainer(g, dc, rcCardRight, "Vision Calibration");
 
         drawPlot(g, dc);
 
         // Telemetry container
-        fillRoundRect(g, rcTelem.left, rcTelem.top, rcTelem.right - rcTelem.left, rcTelem.bottom - rcTelem.top, 8, gdColor(cCardInner));
-        drawRoundRect(g, rcTelem.left, rcTelem.top, rcTelem.right - rcTelem.left, rcTelem.bottom - rcTelem.top, 8, gdColor(cBorder), 1.0f);
+        fillChamferRect(g, rcTelem.left, rcTelem.top, rcTelem.right - rcTelem.left, rcTelem.bottom - rcTelem.top, 6, gdColor(cCardInner));
+        drawChamferRect(g, rcTelem.left, rcTelem.top, rcTelem.right - rcTelem.left, rcTelem.bottom - rcTelem.top, 6, gdColor(cBorder), 1.0f);
         Pattern pat = patternFor(P);
         char tb[256];
-        snprintf(tb, sizeof tb, "Loaded pattern: %d shots + tail  (%s Mode)", (int)pat.shots.size(), pat.classic ? "Classic" : "Smooth");
-        text(dc, tb, rcTelem.left + 16, rcTelem.top + 14, fSmall, cTextSecondary);
-        snprintf(tb, sizeof tb, "Compression: Vert x%.2f | Horiz x%.2f (%d%% Sync)", P.vRatio, P.hRatio, P.matchPct);
+        snprintf(tb, sizeof tb, "Pattern: %d Shots · %s Mode", (int)pat.shots.size(), pat.classic ? "Classic" : "Smooth");
+        text(dc, tb, rcTelem.left + 16, rcTelem.top + 14, fSmallBold, cTextPrimary);
+
+        snprintf(tb, sizeof tb, "Compression: Vx%.2f · Hx%.2f (%d%% Sync)", P.vRatio, P.hRatio, P.matchPct);
         text(dc, tb, rcTelem.left + 16, rcTelem.top + 38, fSmall, cTextSecondary);
-        snprintf(tb, sizeof tb, "Steady drift: dx %+.2f, dy %+.2f  |  Decay: V %+.1f%%, H %+.1f%%", pat.tail.dx, pat.tail.dy, P.vDecay, P.hDecay);
+
+        snprintf(tb, sizeof tb, "Steady Drift: dx %+.2f, dy %+.2f · Decay: V %+.1f%%, H %+.1f%%", pat.tail.dx, pat.tail.dy, P.vDecay, P.hDecay);
         text(dc, tb, rcTelem.left + 16, rcTelem.top + 62, fSmall, cTextSecondary);
+
         int live = g_liveBullet;
         if (live >= 0) {
-            snprintf(tb, sizeof tb, "● FIRING: BULLET %d / 45", live + 1);
-            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 92, rcTelem.left + 260, rcTelem.top + 128}, tb, cGreen, RGB(0,0,0), cGreen, false, fBtn);
+            snprintf(tb, sizeof tb, "Firing · Shot %d / 45", live + 1);
+            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 220, rcTelem.top + 122}, tb, RGB(45, 20, 60), cMagenta, cMagenta, true, fBtn);
         } else {
-            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 92, rcTelem.left + 280, rcTelem.top + 128}, "○ FIRING: IDLE (HOLD RMB + LMB)", cCard, cTextMuted, cBorder, true, fBtn);
+            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 140, rcTelem.top + 122}, "Idle", cCard, cTextMuted, cBorder, true, fBtn);
         }
 
         // Right side buttons
-        pillButton(g, dc, rcSelect, "SELECT SCREENSHOT", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        pillButton(g, dc, rcPaste, "PASTE (Ctrl+V)", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        pillButton(g, dc, rcCalib, "CALIBRATE & APPLY", cBlue, cTextPrimary, cBlue, false, fBtn);
-        pillButton(g, dc, rcCross, "REVIEW DOTS (CROSS-CHECK)", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        pillButton(g, dc, rcMode, P.patternMode == 1 ? "MODE: CLASSIC" : "MODE: SMOOTH", cCardInner, cTextSecondary, cBorder, true, fBtn);
+        pillButton(g, dc, rcSelect, "SELECT IMAGE", cCardInner, cTextPrimary, cBorder, true, fBtn);
+        pillButton(g, dc, rcPaste, "PASTE (CTRL+V)", cCardInner, cTextPrimary, cBorder, true, fBtn);
+        pillButton(g, dc, rcCalib, "CALIBRATE", cMagenta, cTextPrimary, cMagentaHover, true, fBtn);
+        pillButton(g, dc, rcCross, "REVIEW DOTS", cCardInner, cTextSecondary, cBorder, true, fBtn);
+        pillButton(g, dc, rcMode, P.patternMode == 1 ? "MODE: CLASSIC" : "MODE: SMOOTH", cCardInner, cViolet, cBorder, true, fBtn);
 
-        // Status badge container
-        fillRoundRect(g, rcBadge.left, rcBadge.top, rcBadge.right - rcBadge.left, rcBadge.bottom - rcBadge.top, 8, gdColor(cCardInner));
-        drawRoundRect(g, rcBadge.left, rcBadge.top, rcBadge.right - rcBadge.left, rcBadge.bottom - rcBadge.top, 8, gdColor(cBorder), 1.0f);
-        text(dc, "CALIBRATION STATUS & METRICS", rcBadge.left + 20, rcBadge.top + 16, fLabel, cTextPrimary);
+        // Calibration Metrics Container
+        fillChamferRect(g, rcBadge.left, rcBadge.top, rcBadge.right - rcBadge.left, rcBadge.bottom - rcBadge.top, 6, gdColor(cCardInner));
+        drawChamferRect(g, rcBadge.left, rcBadge.top, rcBadge.right - rcBadge.left, rcBadge.bottom - rcBadge.top, 6, gdColor(cBorder), 1.0f);
 
+        // Sync pill
         char sb[128];
-        snprintf(sb, sizeof sb, "● %d%% PATTERN SYNCHRONIZATION", P.matchPct);
-        pillButton(g, dc, RECT{rcBadge.left + 20, rcBadge.top + 46, rcBadge.right - 20, rcBadge.top + 88}, sb, cCard, (P.matchPct >= 80 ? cGreen : cOrange), cBorder, true, fBig);
+        snprintf(sb, sizeof sb, "%d%% Synchronized", P.matchPct);
+        COLORREF syncCol = (P.matchPct >= 80 ? cGreen : cOrange);
+        pillButton(g, dc, RECT{rcBadge.left + 16, rcBadge.top + 14, rcBadge.left + 180, rcBadge.top + 46}, sb, cCard, syncCol, cBorder, true, fSmallBold);
 
-        char rb[256];
-        snprintf(rb, sizeof rb, "Vertical Ratio: x%.2f   ·   Horizontal Ratio: x%.2f", P.vRatio, P.hRatio);
-        text(dc, rb, rcBadge.left + 20, rcBadge.top + 104, fSmall, cTextSecondary);
-        snprintf(rb, sizeof rb, "Base Grey Dots: %d   ·   Loadout Green Dots: %d", (int)P.grey.size(), (int)P.green.size());
-        text(dc, rb, rcBadge.left + 20, rcBadge.top + 130, fSmall, cTextSecondary);
-        snprintf(rb, sizeof rb, "Initial Kick: %.2fx   ·   Kick Decay: %.0f shots", P.calKick, P.calKickShots);
-        text(dc, rb, rcBadge.left + 20, rcBadge.top + 156, fSmall, cTextSecondary);
+        // 2-column clean key-values
+        int colMid = (rcBadge.left + rcBadge.right) / 2;
+        int yRow1 = rcBadge.top + 60;
+        int yRow2 = yRow1 + 26;
+        int yRow3 = yRow2 + 26;
 
+        char buf[64];
+        snprintf(buf, sizeof buf, "Vertical Ratio: x%.2f", P.vRatio);
+        text(dc, buf, rcBadge.left + 16, yRow1, fSmall, cTextSecondary);
+        snprintf(buf, sizeof buf, "Horizontal Ratio: x%.2f", P.hRatio);
+        text(dc, buf, colMid + 10, yRow1, fSmall, cTextSecondary);
+
+        snprintf(buf, sizeof buf, "Base Grey Dots: %d", (int)P.grey.size());
+        text(dc, buf, rcBadge.left + 16, yRow2, fSmall, cTextSecondary);
+        snprintf(buf, sizeof buf, "Loadout Green Dots: %d", (int)P.green.size());
+        text(dc, buf, colMid + 10, yRow2, fSmall, cTextSecondary);
+
+        snprintf(buf, sizeof buf, "Initial Kick: %.2fx", P.calKick);
+        text(dc, buf, rcBadge.left + 16, yRow3, fSmall, cTextSecondary);
+        snprintf(buf, sizeof buf, "Kick Decay: %.0f shots", P.calKickShots);
+        text(dc, buf, colMid + 10, yRow3, fSmall, cTextSecondary);
+
+        int srcY = yRow3 + 34;
         if (g_hasSrc) {
-            std::string srcLabel = "Source Image: " + g_srcName;
-            text(dc, srcLabel, rcBadge.left + 20, rcBadge.top + 192, fSmall, cBlue);
+            std::string srcLabel = "Source: " + g_srcName;
+            text(dc, srcLabel, rcBadge.left + 16, srcY, fSmall, cMagenta);
         } else {
-            text(dc, "Drag & drop a screenshot file or paste with Ctrl+V.", rcBadge.left + 20, rcBadge.top + 192, fSmall, cTextMuted);
+            text(dc, "Paste screenshot or drop image to calibrate.", rcBadge.left + 16, srcY, fSmall, cTextMuted);
         }
-        std::string badgeDesc = P.badge.empty() ? "No calibration data active for this profile." : P.badge;
-        textBox(dc, badgeDesc, RECT{rcBadge.left + 20, rcBadge.top + 220, rcBadge.right - 20, rcBadge.bottom - 10}, fSmall, cTextMuted);
     } else if (g_tab == 2) {
-        // Tab 2: Presets & Config
-        cardContainer(g, dc, rcCardLeft, "WEAPON PRESETS", "Custom profiles & recoil configurations");
-        cardContainer(g, dc, rcCardRight, "CONTROLS & WEAPON BUILD CODE", "Global activation hotkey, ADS condition & Gunsmith codes");
+        // Tab 2: Presets & Settings
+        cardContainer(g, dc, rcCardLeft, "Weapon Presets");
+        cardContainer(g, dc, rcCardRight, "Settings");
 
         // Preset rows
         for (int i = 0; i < PRESET_ROWS; i++) {
@@ -1243,49 +1460,48 @@ static void paint(HDC dc, RECT cr) {
             if (idx >= (int)g_presets.size()) break;
             RECT r{rcPresets.left, rcPresets.top + i * PRESET_H, rcPresets.right, rcPresets.top + (i + 1) * PRESET_H - 4};
             bool sel = (idx == g_sel);
-            fillRoundRect(g, r.left, r.top, r.right - r.left, r.bottom - r.top, 6, gdColor(sel ? cBlue : cCardInner));
-            drawRoundRect(g, r.left, r.top, r.right - r.left, r.bottom - r.top, 6, gdColor(sel ? cBlueHover : cBorder), 1.0f);
+            COLORREF bgRow = sel ? RGB(45, 25, 75) : cCardInner;
+            COLORREF bdrRow = sel ? cMagenta : cBorder;
+            fillChamferRect(g, r.left, r.top, r.right - r.left, r.bottom - r.top, 5, gdColor(bgRow));
+            drawChamferRect(g, r.left, r.top, r.right - r.left, r.bottom - r.top, 5, gdColor(bdrRow), sel ? 1.5f : 1.0f);
+            if (sel) {
+                Gdiplus::SolidBrush barBr(gdColor(cMagenta));
+                g.FillRectangle(&barBr, (float)r.left + 1, (float)r.top + 6, 3.5f, (float)(r.bottom - r.top - 12));
+            }
             g.Flush();
-            std::string nm = (sel ? "✓  " : "    ") + g_presets[idx].name + ((sel && g_naming) ? "_" : "");
-            text(dc, nm, r.left + 14, r.top + 10, fLabel, sel ? cTextPrimary : cTextSecondary);
-        }
-        if ((int)g_presets.size() > PRESET_ROWS) {
-            char sb[64]; snprintf(sb, sizeof sb, "Scroll with wheel for more (%d total)", (int)g_presets.size());
-            text(dc, sb, rcPresets.right - 6, rcPresets.bottom + 2, fSmall, cTextMuted, DT_RIGHT);
+            std::string nm = g_presets[idx].name + ((sel && g_naming) ? "_" : "");
+            std::wstring wnm = toWString(nm);
+            SelectObject(dc, fLabelBold); SetTextColor(dc, sel ? cTextPrimary : cTextSecondary); SetBkMode(dc, TRANSPARENT);
+            RECT tr{r.left + 14, r.top, r.right - 14, r.bottom};
+            DrawTextW(dc, wnm.c_str(), -1, &tr, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
         }
 
-        pillButton(g, dc, rcNew, "+ NEW PRESET", cCardInner, cTextSecondary, cBorder, true, fBtn);
+        // Preset action buttons
+        pillButton(g, dc, rcNew, "+ NEW", cCardInner, cTextPrimary, cBorder, true, fBtn);
         pillButton(g, dc, rcDel, "DELETE", cCardInner, cRed, cBorder, true, fBtn);
-        pillButton(g, dc, rcSave, "SAVE", cBlue, cTextPrimary, cBlue, false, fBtn);
+        pillButton(g, dc, rcSave, "SAVE", cMagenta, cTextPrimary, cMagentaHover, true, fBtn);
         pillButton(g, dc, rcReset, "RESET DEFAULTS", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        pillButton(g, dc, rcReload, "RELOAD ALL", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        text(dc, "Double-click or press F2 to rename preset. Enter or Esc to confirm.", rcCardLeft.left + 20, rcCardLeft.bottom - 24, fSmall, cTextMuted);
+        pillButton(g, dc, rcReload, "RELOAD", cCardInner, cTextSecondary, cBorder, true, fBtn);
 
-        // Right side: Controls
-        pillButton(g, dc, rcHotkey, std::string("TOGGLE HOTKEY: ") + hotkeyName(P.hotkey) + "  (Click to cycle)", cCardInner, cTextPrimary, cBorder, true, fBtn);
-        pillButton(g, dc, rcAds, P.requireAds ? "REQUIRE ADS (HOLD RMB): ON" : "REQUIRE ADS (HOLD RMB): OFF", cCardInner, P.requireAds ? cGreen : cTextMuted, cBorder, true, fBtn);
+        // Right side: Settings
+        // Row 1: Hotkey setting
+        text(dc, "Activation Hotkey", rcCardRight.left + 20, rcHotkey.top + 6, fLabelBold, cTextPrimary);
+        pillButton(g, dc, rcHotkey, hotkeyName(P.hotkey), cCardInner, cMagenta, cBorderHi, true, fBtn);
 
-        text(dc, "GUNSMITH WEAPON BUILD CODE", rcCardRight.left + 20, rcAds.bottom + 14, fLabel, cTextSecondary);
-        fillRoundRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 6, gdColor(cCardInner));
-        drawRoundRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 6, gdColor(cBorder), 1.0f);
-        pillButton(g, dc, rcCopyBuild, "COPY BUILD CODE", cCardInner, cTextSecondary, cBorder, true, fBtn);
-        pillButton(g, dc, rcPasteBuild, "PASTE BUILD CODE", cCardInner, cTextSecondary, cBorder, true, fBtn);
+        // Row 2: ADS toggle
+        text(dc, "Require Aim Down Sights (RMB)", rcCardRight.left + 20, rcAds.top + 6, fLabelBold, cTextPrimary);
+        drawAppleSwitch(g, rcAdsSwitch, P.requireAds);
 
-        // Guide box
-        fillRoundRect(g, rcGuide.left, rcGuide.top, rcGuide.right - rcGuide.left, rcGuide.bottom - rcGuide.top, 8, gdColor(cCardInner));
-        drawRoundRect(g, rcGuide.left, rcGuide.top, rcGuide.right - rcGuide.left, rcGuide.bottom - rcGuide.top, 8, gdColor(cBorder), 1.0f);
-        text(dc, "HOW TO USE DF-RECOIL:", rcGuide.left + 16, rcGuide.top + 14, fLabel, cTextPrimary);
-        text(dc, "1. Select or create your weapon profile in this tab.", rcGuide.left + 16, rcGuide.top + 38, fSmall, cTextSecondary);
-        char guide2[128];
-        snprintf(guide2, sizeof guide2, "2. Press [%s] or click header pill to toggle recoil assistance.", hotkeyName(P.hotkey));
-        text(dc, guide2, rcGuide.left + 16, rcGuide.top + 60, fSmall, cTextSecondary);
-        text(dc, "3. Aim down sights (Hold RMB) and fire (Hold LMB) in game.", rcGuide.left + 16, rcGuide.top + 82, fSmall, cTextSecondary);
-        text(dc, "4. Tune vertical/horizontal scale & decay in the Recoil Tuning tab.", rcGuide.left + 16, rcGuide.top + 104, fSmall, cTextSecondary);
-        text(dc, "5. Import/export weapon codes directly to Delta Force Gunsmith.", rcGuide.left + 16, rcGuide.top + 126, fSmall, cTextSecondary);
+        // Row 3: Gunsmith Build Code
+        text(dc, "Gunsmith Build Code", rcCardRight.left + 20, rcBuildEdit.top - 22, fLabelBold, cTextPrimary);
+        fillChamferRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 5, gdColor(cCardInner));
+        drawChamferRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 5, gdColor(cBorder), 1.0f);
+        pillButton(g, dc, rcCopyBuild, "COPY CODE", cCardInner, cTextPrimary, cBorder, true, fBtn);
+        pillButton(g, dc, rcPasteBuild, "PASTE CODE", cCardInner, cTextPrimary, cBorder, true, fBtn);
     }
 
     // 4. Footer Bar
-    int footerH = 34;
+    int footerH = 30;
     int footerY = cr.bottom - footerH;
     fillRect(dc, RECT{0, footerY, cr.right, cr.bottom}, cHeader);
     HPEN penFoot = CreatePen(PS_SOLID, 1, cBorder);
@@ -1297,14 +1513,11 @@ static void paint(HDC dc, RECT cr) {
 
     // Status dot
     Gdiplus::SolidBrush brStat(gdColor(g_enabled ? cGreen : cOrange));
-    g.FillEllipse(&brStat, 24.0f, (float)(footerY + 13), 8.0f, 8.0f);
+    g.FillEllipse(&brStat, 24.0f, (float)(footerY + 11), 8.0f, 8.0f);
     g.Flush();
-    text(dc, g_status, 38, footerY + 8, fSmall, cTextSecondary);
+    text(dc, g_status, 38, footerY + 6, fSmall, cTextSecondary);
 
-    char footText[128];
-    snprintf(footText, sizeof footText, "Toggle: [%s]  |  ADS: [%s]  |  Tabs: [1] [2] [3]",
-             hotkeyName(P.hotkey), P.requireAds ? "Hold RMB" : "Always");
-    text(dc, footText, cr.right - 24, footerY + 8, fSmall, cTextMuted, DT_RIGHT);
+    text(dc, "Tabs: 1 · 2 · 3", cr.right - 24, footerY + 6, fSmall, cTextMuted, DT_RIGHT);
 }
 
 // ============================================================ cross-validation window (Apple macOS Dark Mode styling)
@@ -1363,24 +1576,23 @@ static void paintCalib(HDC dc, RECT cr) {
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
     fillRect(dc, cr, cBg);
-    fillRect(dc, RECT{0, 0, cr.right, 106}, cHeader);
+    fillRect(dc, RECT{0, 0, cr.right, 64}, cHeader);
     HPEN penSep = CreatePen(PS_SOLID, 1, cBorder);
     HGDIOBJ opSep = SelectObject(dc, penSep);
-    MoveToEx(dc, 0, 106, nullptr);
-    LineTo(dc, cr.right, 106);
+    MoveToEx(dc, 0, 64, nullptr);
+    LineTo(dc, cr.right, 64);
     SelectObject(dc, opSep);
     DeleteObject(penSep);
 
     size_t ng = g_cw.grey.size(), nn = g_cw.green.size();
     char b[256];
-    snprintf(b, sizeof b, "SYNCHRONIZED: %d BASE / %d LOADOUT DOTS (%d%% MATCH)", (int)ng, (int)nn, matchPercent(ng, nn));
-    text(dc, b, 24, 14, fBig, cTextPrimary);
+    snprintf(b, sizeof b, "Pattern Cross-Validation");
+    text(dc, b, 24, 14, fSection, cTextPrimary);
 
     double vr = 1, hr = 1;
     if (ng >= 2 && nn >= 1) compressionRatios(g_cw.grey, g_cw.green, vr, hr);
-    snprintf(b, sizeof b, "Compression Ratios: Vert x%.2f  |  Horiz x%.2f   (Base: %d, Loadout: %d)", vr, hr, (int)ng, (int)nn);
-    text(dc, b, 24, 48, fLabel, cBlue);
-    text(dc, "Click LEFT mannequin to add/remove grey dots; click RIGHT to add/remove green dots.", 24, 76, fSmall, cTextMuted);
+    snprintf(b, sizeof b, "%d Base Dots · %d Loadout Dots (%d%% Match)  ·  Ratio: Vx%.2f Hx%.2f", (int)ng, (int)nn, matchPercent(ng, nn), vr, hr);
+    text(dc, b, 24, 38, fSmall, cBlue);
 
     const Image& im = g_lastExtract.crop;
     int dw = (int)(im.w * g_cw.scale), dh = (int)(im.h * g_cw.scale);
@@ -1411,11 +1623,16 @@ static void paintCalib(HDC dc, RECT cr) {
     for (auto& p : pg) dotPen(dc, p.x, p.y, r, RGB(255, 255, 255), 1, PS_DOT);
     for (auto& p : pn) dotPen(dc, p.x, p.y, r - 1, RGB(48, 209, 88), 2);
 
-    pillButton(g, dc, g_cw.rcReset, "RESET TO AUTO-DETECTED", cCard, cTextSecondary, cBorder, true, fBtn);
-    pillButton(g, dc, g_cw.rcCancel, "CANCEL", cCard, cTextSecondary, cBorder, true, fBtn);
-    pillButton(g, dc, g_cw.rcConfirm, "CONFIRM & APPLY", cBlue, cTextPrimary, cBlue, false, fBtn);
-    text(dc, "white = grey base dots   green = loadout dots   blue dashed = base scaled by ratios", 24,
-         g_cw.rcReset.top - 24, fSmall, cTextMuted);
+    pillButton(g, dc, g_cw.rcReset, "Reset Auto-Detect", cCard, cTextSecondary, cBorder, true, fBtn);
+    pillButton(g, dc, g_cw.rcCancel, "Cancel", cCard, cTextSecondary, cBorder, true, fBtn);
+    pillButton(g, dc, g_cw.rcConfirm, "Apply", cBlue, cTextPrimary, cBlue, false, fBtn);
+}
+
+static RECT getDisplayWorkArea(HWND hwnd = nullptr) {
+    HMONITOR hMon = MonitorFromWindow(hwnd ? hwnd : GetDesktopWindow(), MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi{}; mi.cbSize = sizeof(mi);
+    if (GetMonitorInfoW(hMon, &mi)) return mi.rcWork;
+    RECT wa{}; SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0); return wa;
 }
 
 static LRESULT CALLBACK calibProc(HWND h, UINT m, WPARAM w, LPARAM l) {
@@ -1424,12 +1641,26 @@ static LRESULT CALLBACK calibProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_PAINT: {
         PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps);
         RECT cr; GetClientRect(h, &cr);
+        if (cr.right <= 0 || cr.bottom <= 0) { EndPaint(h, &ps); return 0; }
         HDC mem = CreateCompatibleDC(dc); HBITMAP bm = CreateCompatibleBitmap(dc, cr.right, cr.bottom);
         HGDIOBJ old = SelectObject(mem, bm);
         paintCalib(mem, cr);
         BitBlt(dc, 0, 0, cr.right, cr.bottom, mem, 0, 0, SRCCOPY);
         SelectObject(mem, old); DeleteObject(bm); DeleteDC(mem);
         EndPaint(h, &ps); return 0;
+    }
+    case WM_SETCURSOR: {
+        HWND hCursorWnd = (HWND)w;
+        if (hCursorWnd == h) {
+            POINT pt; GetCursorPos(&pt); ScreenToClient(h, &pt);
+            if (inRect(g_cw.rcReset, pt.x, pt.y) || inRect(g_cw.rcCancel, pt.x, pt.y) || inRect(g_cw.rcConfirm, pt.x, pt.y)) {
+                SetCursor(LoadCursor(nullptr, IDC_HAND));
+                return TRUE;
+            }
+            SetCursor(LoadCursor(nullptr, IDC_CROSS));
+            return TRUE;
+        }
+        break;
     }
     case WM_LBUTTONDOWN: {
         int x = (short)LOWORD(l), y = (short)HIWORD(l);
@@ -1463,7 +1694,19 @@ static LRESULT CALLBACK calibProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         }
         InvalidateRect(h, nullptr, FALSE); return 0;
     }
-    case WM_KEYDOWN: if (w == VK_ESCAPE) closeCalibWin(); return 0;
+    case WM_KEYDOWN:
+        if (w == VK_ESCAPE) { closeCalibWin(); return 0; }
+        if (w == VK_RETURN) {
+            if (g_cw.green.size() < 2 && g_cw.grey.size() < 2) {
+                MessageBoxA(h, "Need at least 2 dots to compute calibration.", "Calibration", MB_ICONWARNING);
+                return 0;
+            }
+            g_hasBackup = false;
+            applyCalibration(g_cw.green, g_cw.grey);
+            closeCalibWin();
+            return 0;
+        }
+        return 0;
     case WM_CLOSE: closeCalibWin(); return 0;
     }
     return DefWindowProcW(h, m, w, l);
@@ -1488,32 +1731,31 @@ static void openCalibWin() {
         g_cw.green = g_lastExtract.green;
     }
 
-    // Dynamically size window to guarantee buttons are fully visible on screen
-    RECT workArea{};
-    SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
+    // Dynamically size window relative to current monitor work area
+    RECT workArea = getDisplayWorkArea(g_hwnd);
     int workH = (workArea.bottom > workArea.top) ? (workArea.bottom - workArea.top) : 900;
     int workW = (workArea.right > workArea.left) ? (workArea.right - workArea.left) : 1600;
 
-    int maxClientH = max(480, workH - 120);
-    int maxClientW = max(700, workW - 120);
-    int maxDH = max(200, maxClientH - 220);
+    int maxClientH = max(420, workH - 100);
+    int maxClientW = max(700, workW - 100);
+    int maxDH = max(180, maxClientH - 170);
     int maxDW = max(300, maxClientW - 80);
 
     double scaleH = (double)maxDH / max(1, im.h);
     double scaleW = (double)maxDW / max(1, im.w);
-    g_cw.scale = std::clamp(min(scaleH, scaleW), 0.30, 2.0);
+    g_cw.scale = std::clamp(min(scaleH, scaleW), 0.15, 2.0);
 
     int dw = (int)(im.w * g_cw.scale), dh = (int)(im.h * g_cw.scale);
-    int cw = max(800, min(maxClientW, dw + 60));
+    int cw = max(720, min(maxClientW, dw + 60));
     g_cw.imgX = (cw - dw) / 2;
-    g_cw.imgY = 120;
-    int btnY = g_cw.imgY + dh + 30;
+    g_cw.imgY = 80;
+    int btnY = g_cw.imgY + dh + 16;
 
-    g_cw.rcReset = RECT{24, btnY, 24 + 260, btnY + 44};
-    g_cw.rcConfirm = RECT{cw - 24 - 220, btnY, cw - 24, btnY + 44};
-    g_cw.rcCancel = RECT{g_cw.rcConfirm.left - 12 - 130, btnY, g_cw.rcConfirm.left - 12, btnY + 44};
+    g_cw.rcReset = RECT{24, btnY, 24 + 180, btnY + 34};
+    g_cw.rcConfirm = RECT{cw - 24 - 130, btnY, cw - 24, btnY + 34};
+    g_cw.rcCancel = RECT{g_cw.rcConfirm.left - 10 - 100, btnY, g_cw.rcConfirm.left - 10, btnY + 34};
 
-    int clientH = btnY + 56;
+    int clientH = btnY + 46;
     RECT r{0, 0, cw, clientH};
     DWORD st = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
     AdjustWindowRect(&r, st, FALSE);
@@ -1621,11 +1863,12 @@ static void pasteScreenshot() {
 // ============================================================ preset actions
 static std::string uniqueName(std::string base, int skip) {
     auto taken = [&](const std::string& n) {
+        if (n == "__config") return true;
         for (int i = 0; i < (int)g_presets.size(); i++)
             if (i != skip && g_presets[i].name == n) return true;
         return false;
     };
-    if (base.empty()) base = "Preset";
+    if (base.empty() || base == "__config") base = "Preset";
     if (!taken(base)) return base;
     for (int k = 2;; k++) {
         std::string n = base + " (" + std::to_string(k) + ")";
@@ -1686,7 +1929,6 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                 inRect(rcHeaderPreset, pt.x, pt.y) || inRect(rcHeaderNext, pt.x, pt.y)) hand = true;
             for (int i = 0; i < 3 && !hand; i++) if (inRect(rcTabs[i], pt.x, pt.y)) hand = true;
             if (g_tab == 0) {
-                if (inRect(rcSaveInTuning, pt.x, pt.y) || inRect(rcReloadInTuning, pt.x, pt.y)) hand = true;
                 for (int i = 0; i < kNumSliders && !hand; i++) {
                     RECT t = rcSliderTracks[i];
                     RECT hit{t.left - 10, t.top - 20, t.right + 10, t.bottom + 8};
@@ -1700,8 +1942,8 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                 if (inRect(rcNew, pt.x, pt.y) || inRect(rcDel, pt.x, pt.y) ||
                     inRect(rcSave, pt.x, pt.y) || inRect(rcReset, pt.x, pt.y) ||
                     inRect(rcReload, pt.x, pt.y) || inRect(rcHotkey, pt.x, pt.y) ||
-                    inRect(rcAds, pt.x, pt.y) || inRect(rcCopyBuild, pt.x, pt.y) ||
-                    inRect(rcPasteBuild, pt.x, pt.y)) hand = true;
+                    inRect(rcAds, pt.x, pt.y) || inRect(rcAdsSwitch, pt.x, pt.y) ||
+                    inRect(rcCopyBuild, pt.x, pt.y) || inRect(rcPasteBuild, pt.x, pt.y)) hand = true;
                 if (inRect(rcPresets, pt.x, pt.y)) hand = true;
             }
             if (hand) {
@@ -1752,6 +1994,7 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_PAINT: {
         PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps);
         RECT cr; GetClientRect(h, &cr);
+        if (cr.right <= 0 || cr.bottom <= 0) { EndPaint(h, &ps); return 0; }
         HDC mem = CreateCompatibleDC(dc); HBITMAP bm = CreateCompatibleBitmap(dc, cr.right, cr.bottom);
         HGDIOBJ old = SelectObject(mem, bm);
         paint(mem, cr);
@@ -1838,17 +2081,6 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                     g_dragSlider = i; SetCapture(h); setSlider(i, x); InvalidateRect(h, nullptr, FALSE); return 0;
                 }
             }
-            if (inRect(rcSaveInTuning, x, y)) {
-                savePresets();
-                g_status = "Saved preset '" + g_presets[g_sel].name + "'";
-                InvalidateRect(h, nullptr, FALSE);
-                return 0;
-            }
-            if (inRect(rcReloadInTuning, x, y)) {
-                reloadAll();
-                InvalidateRect(h, nullptr, FALSE);
-                return 0;
-            }
         }
         // Tab 1: Pattern & Vision
         else if (g_tab == 1) {
@@ -1912,8 +2144,8 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                 Preset& p = g_presets[g_sel];
                 p.hotkey = kHotkeys[(hotkeyIndex(p.hotkey) + 1) % kNumHotkeys].vk;
                 syncEngine(); savePresets();
-                g_status = std::string("Hotkey set to [") + hotkeyName(p.hotkey) + "]  (left-click = next, right-click = prev)";
-            } else if (inRect(rcAds, x, y)) {
+                g_status = std::string("Hotkey: [") + hotkeyName(p.hotkey) + "]";
+            } else if (inRect(rcAds, x, y) || inRect(rcAdsSwitch, x, y)) {
                 g_presets[g_sel].requireAds ^= true;
                 syncEngine(); savePresets();
             } else if (inRect(rcReset, x, y)) {
@@ -1981,8 +2213,8 @@ static LRESULT CALLBACK wndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                 RECT hit{t.left - 10, t.top - 22, t.right + 10, t.bottom + 10};
                 if (inRect(hit, pt.x, pt.y)) {
                     const SliderDef& d = kSliders[i];
-                    double v = std::clamp(sliderValue(i) + dir * d.step, d.lo, d.hi);
-                    g_presets[g_sel].*d.field = std::round(v / d.step) * d.step;
+                    double rounded = std::round((sliderValue(i) + dir * d.step) / d.step) * d.step;
+                    g_presets[g_sel].*d.field = std::clamp(rounded, d.lo, d.hi);
                     syncEngine();
                     savePresets();
                     InvalidateRect(h, nullptr, FALSE);
@@ -2153,14 +2385,16 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
         return 0;
     }
 
-    fTitle = CreateFontA(24, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fSection = CreateFontA(19, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fLabel = CreateFontA(15, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fBig = CreateFontA(19, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fSmall = CreateFontA(13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fSmallBold = CreateFontA(13, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fBtn = CreateFontA(14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
-    fTab = CreateFontA(14, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, "Segoe UI");
+    fTitle = CreateFontW(19, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fSection = CreateFontW(15, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fLabel = CreateFontW(13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fLabelBold = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fBig = CreateFontW(17, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fSmall = CreateFontW(12, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fSmallBold = CreateFontW(12, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fBtn = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fTab = CreateFontW(13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fTabActive = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
     g_brEdit = CreateSolidBrush(cCardInner);
 
     WNDCLASSW wc{}; wc.lpfnWndProc = wndProc; wc.hInstance = hi; wc.lpszClassName = L"DFRecoilWnd";
@@ -2168,8 +2402,7 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
     WNDCLASSW cc{}; cc.lpfnWndProc = calibProc; cc.hInstance = hi; cc.lpszClassName = L"DFCalibWnd";
     cc.hCursor = LoadCursor(nullptr, IDC_CROSS); RegisterClassW(&cc);
 
-    RECT workArea{};
-    SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
+    RECT workArea = getDisplayWorkArea(nullptr);
     int workW = (workArea.right > workArea.left) ? (workArea.right - workArea.left) : 1920;
     int workH = (workArea.bottom > workArea.top) ? (workArea.bottom - workArea.top) : 1080;
 
@@ -2189,8 +2422,10 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
 
     updateLayout(clientW, clientH);
 
-    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"Delta Force Recoil Manager", st,
+    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"DF-RECOIL // METAPHOR", st,
                            posX, posY, winW, winH, nullptr, nullptr, hi, nullptr);
+    BOOL darkMode = TRUE;
+    DwmSetWindowAttribute(g_hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &darkMode, sizeof(darkMode));
     refreshBuildEdit();
     ShowWindow(g_hwnd, SW_SHOW);
     HANDLE th = CreateThread(nullptr, 0, workerThread, nullptr, 0, nullptr);
@@ -2198,6 +2433,19 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) { TranslateMessage(&msg); DispatchMessage(&msg); }
     g_running = false; WaitForSingleObject(th, 1000);
+    CloseHandle(th);
+    DeleteCriticalSection(&g_cs);
+    DeleteObject(fTitle);
+    DeleteObject(fSection);
+    DeleteObject(fLabel);
+    DeleteObject(fLabelBold);
+    DeleteObject(fBig);
+    DeleteObject(fSmall);
+    DeleteObject(fSmallBold);
+    DeleteObject(fBtn);
+    DeleteObject(fTab);
+    DeleteObject(fTabActive);
+    DeleteObject(g_brEdit);
     timeEndPeriod(1);
     Gdiplus::GdiplusShutdown(gdipTok);
     return 0;
