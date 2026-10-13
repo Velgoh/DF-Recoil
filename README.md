@@ -17,7 +17,7 @@ Re-engineered as a native C++ executable with zero runtime dependencies (no Pyth
   - Replaced rounded pill buttons with 45° chamfered polygons and slanted ribbons.
   - Custom Atlus diamond logo and angled switches.
   - Diamond slider thumbs with neon magenta borders and active track progress fills.
-  - DWM immersive dark mode title bar integration (`DF-RECOIL // METAPHOR`).
+  - DWM immersive dark mode title bar integration (`DF-RECOIL // YONAH`).
 - **Streamlined Three-Tab Architecture**:
   - **`[ RECOIL ]`**: Dual-column layout dividing **Sensitivity** (Master, V/H scale, RPM, Steps, Jitter) and **Stabilization** (V/H decay, decay start shot, kick boost & duration, 45-mag tail vertical & sideways).
   - **`[ TRAJECTORY ]`**: Anti-aliased 45-shot trajectory curve plot, live bullet telemetry, steady drift vectors, and screenshot auto-calibration.

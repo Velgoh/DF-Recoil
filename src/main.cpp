@@ -1275,7 +1275,7 @@ static void paint(HDC dc, RECT cr) {
 
     // Left Title + Logo
     drawLogo(g, 32.0f, 26.0f, 18.0f, gdColor(cMagenta));
-    text(dc, "DF-RECOIL // METAPHOR", 48, 17, fTitle, cTextPrimary);
+    text(dc, "DF-RECOIL // YONAH", 48, 17, fTitle, cTextPrimary);
 
     // Center: Atlus Segmented Tabs
     int totalTabW = rcTabs[2].right - rcTabs[0].left;
@@ -1318,8 +1318,8 @@ static void paint(HDC dc, RECT cr) {
     // 3. Tab Contents
     if (g_tab == 0) {
         // Tab 0: Recoil Tuning
-        cardContainer(g, dc, rcCardLeft, "Sensitivity");
-        cardContainer(g, dc, rcCardRight, "Stabilization");
+        cardContainer(g, dc, rcCardLeft, "SENSITIVITY");
+        cardContainer(g, dc, rcCardRight, "STABILIZATION");
 
         // Column 1 Sliders
         for (int r = 0; r < 6; r++) {
@@ -1376,8 +1376,8 @@ static void paint(HDC dc, RECT cr) {
         }
     } else if (g_tab == 1) {
         // Tab 1: Trajectory & Vision
-        cardContainer(g, dc, rcCardLeft, "Trajectory");
-        cardContainer(g, dc, rcCardRight, "Vision Calibration");
+        cardContainer(g, dc, rcCardLeft, "TRAJECTORY");
+        cardContainer(g, dc, rcCardRight, "VISION CALIBRATION");
 
         drawPlot(g, dc);
 
@@ -1400,7 +1400,7 @@ static void paint(HDC dc, RECT cr) {
             snprintf(tb, sizeof tb, "Firing · Shot %d / 45", live + 1);
             pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 220, rcTelem.top + 122}, tb, RGB(45, 20, 60), cMagenta, cMagenta, true, fBtn);
         } else {
-            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 140, rcTelem.top + 122}, "Idle", cCard, cTextMuted, cBorder, true, fBtn);
+            pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 140, rcTelem.top + 122}, "STANDBY", cCard, cTextMuted, cBorder, true, fBtn);
         }
 
         // Right side buttons
@@ -1451,8 +1451,8 @@ static void paint(HDC dc, RECT cr) {
         }
     } else if (g_tab == 2) {
         // Tab 2: Presets & Settings
-        cardContainer(g, dc, rcCardLeft, "Weapon Presets");
-        cardContainer(g, dc, rcCardRight, "Settings");
+        cardContainer(g, dc, rcCardLeft, "WEAPON PRESETS");
+        cardContainer(g, dc, rcCardRight, "CONFIGURATION");
 
         // Preset rows
         for (int i = 0; i < PRESET_ROWS; i++) {
@@ -1485,15 +1485,15 @@ static void paint(HDC dc, RECT cr) {
 
         // Right side: Settings
         // Row 1: Hotkey setting
-        text(dc, "Activation Hotkey", rcCardRight.left + 20, rcHotkey.top + 6, fLabelBold, cTextPrimary);
+        text(dc, "ACTIVATION HOTKEY", rcCardRight.left + 20, rcHotkey.top + 6, fLabelBold, cTextPrimary);
         pillButton(g, dc, rcHotkey, hotkeyName(P.hotkey), cCardInner, cMagenta, cBorderHi, true, fBtn);
 
         // Row 2: ADS toggle
-        text(dc, "Require Aim Down Sights (RMB)", rcCardRight.left + 20, rcAds.top + 6, fLabelBold, cTextPrimary);
+        text(dc, "REQUIRE AIM DOWN SIGHTS (ADS)", rcCardRight.left + 20, rcAds.top + 6, fLabelBold, cTextPrimary);
         drawAppleSwitch(g, rcAdsSwitch, P.requireAds);
 
         // Row 3: Gunsmith Build Code
-        text(dc, "Gunsmith Build Code", rcCardRight.left + 20, rcBuildEdit.top - 22, fLabelBold, cTextPrimary);
+        text(dc, "GUNSMITH BUILD CODE", rcCardRight.left + 20, rcBuildEdit.top - 22, fLabelBold, cTextPrimary);
         fillChamferRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 5, gdColor(cCardInner));
         drawChamferRect(g, rcBuildEdit.left - 2, rcBuildEdit.top - 2, (rcBuildEdit.right - rcBuildEdit.left) + 4, (rcBuildEdit.bottom - rcBuildEdit.top) + 4, 5, gdColor(cBorder), 1.0f);
         pillButton(g, dc, rcCopyBuild, "COPY CODE", cCardInner, cTextPrimary, cBorder, true, fBtn);
@@ -1586,18 +1586,18 @@ static void paintCalib(HDC dc, RECT cr) {
 
     size_t ng = g_cw.grey.size(), nn = g_cw.green.size();
     char b[256];
-    snprintf(b, sizeof b, "Pattern Cross-Validation");
+    snprintf(b, sizeof b, "PATTERN CROSS-VALIDATION");
     text(dc, b, 24, 14, fSection, cTextPrimary);
 
     double vr = 1, hr = 1;
     if (ng >= 2 && nn >= 1) compressionRatios(g_cw.grey, g_cw.green, vr, hr);
     snprintf(b, sizeof b, "%d Base Dots · %d Loadout Dots (%d%% Match)  ·  Ratio: Vx%.2f Hx%.2f", (int)ng, (int)nn, matchPercent(ng, nn), vr, hr);
-    text(dc, b, 24, 38, fSmall, cBlue);
+    text(dc, b, 24, 38, fSmall, cMagenta);
 
     const Image& im = g_lastExtract.crop;
     int dw = (int)(im.w * g_cw.scale), dh = (int)(im.h * g_cw.scale);
-    fillRoundRect(g, g_cw.imgX - 4, g_cw.imgY - 4, dw + 8, dh + 8, 6, gdColor(cCardInner));
-    drawRoundRect(g, g_cw.imgX - 4, g_cw.imgY - 4, dw + 8, dh + 8, 6, gdColor(cBorder), 1.0f);
+    fillChamferRect(g, g_cw.imgX - 4, g_cw.imgY - 4, dw + 8, dh + 8, 6, gdColor(cCardInner));
+    drawChamferRect(g, g_cw.imgX - 4, g_cw.imgY - 4, dw + 8, dh + 8, 6, gdColor(cBorder), 1.0f);
 
     BITMAPINFO bi{}; bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER); bi.bmiHeader.biWidth = im.w;
     bi.bmiHeader.biHeight = -im.h; bi.bmiHeader.biPlanes = 1; bi.bmiHeader.biBitCount = 32; bi.bmiHeader.biCompression = BI_RGB;
@@ -1610,22 +1610,22 @@ static void paintCalib(HDC dc, RECT cr) {
     std::vector<POINT> pg, pn;
     for (auto& d : sg) pg.push_back(S(d));
     for (auto& d : sn) pn.push_back(S(d));
-    polyline(dc, pg, RGB(148, 163, 184), 1);
-    polyline(dc, pn, RGB(48, 209, 88), 2);
+    polyline(dc, pg, cTextMuted, 1);
+    polyline(dc, pn, cGreen, 2);
     if (sg.size() >= 2 && !sn.empty()) {
         std::vector<POINT> pc;
         for (auto& d : sg) {
             Dot c{(float)(sn[0].x + (d.x - sg[0].x) * hr), (float)(sn[0].y - (sg[0].y - d.y) * vr)};
             pc.push_back(S(c));
         }
-        polyline(dc, pc, RGB(10, 132, 255), 2, true);
+        polyline(dc, pc, cMagenta, 2, true);
     }
-    for (auto& p : pg) dotPen(dc, p.x, p.y, r, RGB(255, 255, 255), 1, PS_DOT);
-    for (auto& p : pn) dotPen(dc, p.x, p.y, r - 1, RGB(48, 209, 88), 2);
+    for (auto& p : pg) dotPen(dc, p.x, p.y, r, cTextPrimary, 1, PS_DOT);
+    for (auto& p : pn) dotPen(dc, p.x, p.y, r - 1, cGreen, 2);
 
-    pillButton(g, dc, g_cw.rcReset, "Reset Auto-Detect", cCard, cTextSecondary, cBorder, true, fBtn);
-    pillButton(g, dc, g_cw.rcCancel, "Cancel", cCard, cTextSecondary, cBorder, true, fBtn);
-    pillButton(g, dc, g_cw.rcConfirm, "Apply", cBlue, cTextPrimary, cBlue, false, fBtn);
+    pillButton(g, dc, g_cw.rcReset, "RESET", cCard, cTextSecondary, cBorder, true, fBtn);
+    pillButton(g, dc, g_cw.rcCancel, "CANCEL", cCard, cTextSecondary, cBorder, true, fBtn);
+    pillButton(g, dc, g_cw.rcConfirm, "APPLY", cMagenta, cTextPrimary, cMagentaHover, true, fBtn);
 }
 
 static RECT getDisplayWorkArea(HWND hwnd = nullptr) {
@@ -1769,8 +1769,10 @@ static void openCalibWin() {
     if (posY < workArea.top) posY = workArea.top + 10;
     if (posY + wh > workArea.bottom) posY = max(workArea.top, workArea.bottom - wh - 10);
 
-    g_cw.hwnd = CreateWindowW(L"DFCalibWnd", L"Pattern Cross-Validation", st,
+    g_cw.hwnd = CreateWindowW(L"DFCalibWnd", L"DF-RECOIL // CALIBRATION", st,
                               posX, posY, ww, wh, g_hwnd, nullptr, GetModuleHandle(nullptr), nullptr);
+    BOOL calibDark = TRUE;
+    DwmSetWindowAttribute(g_cw.hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &calibDark, sizeof(calibDark));
     EnableWindow(g_hwnd, FALSE);
     ShowWindow(g_cw.hwnd, SW_SHOW);
 }
@@ -2422,7 +2424,7 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
 
     updateLayout(clientW, clientH);
 
-    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"DF-RECOIL // METAPHOR", st,
+    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"DF-RECOIL // YONAH", st,
                            posX, posY, winW, winH, nullptr, nullptr, hi, nullptr);
     BOOL darkMode = TRUE;
     DwmSetWindowAttribute(g_hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &darkMode, sizeof(darkMode));
