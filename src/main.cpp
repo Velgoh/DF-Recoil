@@ -683,22 +683,22 @@ static DWORD WINAPI workerThread(LPVOID) {
     return 0;
 }
 
-// ============================================================ UI helpers (Apple macOS Dark Mode)
+// ============================================================ UI helpers (Persona 5 Dark Mode)
 struct SliderDef { const char* label; double Preset::*field; double lo, hi, step; const char* fmt; };
 static const SliderDef kSliders[] = {
-    {"Master Scale", &Preset::master, 0.10, 6.0, 0.01, "%.2fx"},
-    {"Vertical Scale", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"Horizontal Scale", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fx"},
-    {"Vertical Decay", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"Horizontal Decay", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
-    {"Decay Start Shot", &Preset::decayStart, 0, 45, 1, "%.0f"},
-    {"Initial Kick", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fx"},
-    {"Kick Duration", &Preset::kickShots, 1, 15, 1, "%.0f shots"},
-    {"Fire Rate (RPM)", &Preset::rpm, 200, 1500, 1, "%.0f RPM"},
-    {"Smoothing Steps", &Preset::steps, 3, 50, 1, "%.0f steps"},
-    {"Jitter", &Preset::jitter, 0.0, 1.5, 0.01, "+/- %.2f px"},
-    {"Tail Vertical", &Preset::tailV, 0, 300, 1, "%.0f %%"},
-    {"Tail Horizontal", &Preset::tailH, -100, 300, 1, "%.0f %%"},
+    {"MASTER SCALE", &Preset::master, 0.10, 6.0, 0.01, "%.2fx"},
+    {"VERTICAL SCALE", &Preset::vScale, 0.10, 6.0, 0.01, "%.2fx"},
+    {"HORIZONTAL SCALE", &Preset::hScale, 0.10, 6.0, 0.01, "%.2fx"},
+    {"VERTICAL DECAY", &Preset::vDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
+    {"HORIZONTAL DECAY", &Preset::hDecay, -5.0, 10.0, 0.1, "%+.1f %%/shot"},
+    {"DECAY START SHOT", &Preset::decayStart, 0, 45, 1, "%.0f"},
+    {"INITIAL KICK", &Preset::kickMult, 1.0, 4.0, 0.05, "%.2fx"},
+    {"KICK DURATION", &Preset::kickShots, 1, 15, 1, "%.0f shots"},
+    {"FIRE RATE (RPM)", &Preset::rpm, 200, 1500, 1, "%.0f RPM"},
+    {"SMOOTHING STEPS", &Preset::steps, 3, 50, 1, "%.0f steps"},
+    {"JITTER", &Preset::jitter, 0.0, 1.5, 0.01, "+/- %.2f px"},
+    {"TAIL VERTICAL", &Preset::tailV, 0, 300, 1, "%.0f %%"},
+    {"TAIL HORIZONTAL", &Preset::tailH, -100, 300, 1, "%.0f %%"},
 };
 static const int kNumSliders = (int)(sizeof(kSliders) / sizeof(kSliders[0]));
 
@@ -719,30 +719,43 @@ static const int kNumHotkeys = (int)(sizeof(kHotkeys) / sizeof(kHotkeys[0]));
 static int hotkeyIndex(int vk) { for (int i = 0; i < kNumHotkeys; i++) if (kHotkeys[i].vk == vk) return i; return 5; }
 static const char* hotkeyName(int vk) { return kHotkeys[hotkeyIndex(vk)].name; }
 
-// Atlus (Persona / Metaphor) Dark Purple Palette
-static const COLORREF cBg           = RGB(12, 9, 22);        // #0C0916 Midnight Abyss window background
-static const COLORREF cHeader       = RGB(18, 12, 34);       // #120C22 Top toolbar & header surface
-static const COLORREF cCard         = RGB(25, 17, 46);       // #19112E Card surfaces
-static const COLORREF cCardInner    = RGB(15, 10, 28);       // #0F0A1C Inset surfaces (plot, edit, badges)
-static const COLORREF cBorder       = RGB(62, 38, 100);      // #3E2664 Electric violet card borders
-static const COLORREF cBorderHi     = RGB(107, 61, 176);     // #6B3DB0 High-voltage violet border highlight
-static const COLORREF cBorderGlow   = RGB(217, 69, 240);     // #D945F0 Neon magenta glow
-static const COLORREF cBlue         = RGB(229, 45, 240);     // #E52DF0 Atlus Signature Neon Magenta
-static const COLORREF cBlueHover    = RGB(245, 85, 255);     // #F555FF
-static const COLORREF cMagenta      = RGB(229, 45, 240);     // #E52DF0 Atlus Neon Magenta
-static const COLORREF cMagentaHover = RGB(245, 85, 255);     // #F555FF
-static const COLORREF cViolet       = RGB(187, 88, 251);     // #BB58FB Electric Violet / Lilac
-static const COLORREF cCyan         = RGB(6, 198, 229);      // #06C6E5 Electric Cyan telemetry
-static const COLORREF cGreen        = RGB(48, 221, 135);     // #30DD87 Emerald active indicator
-static const COLORREF cOrange       = RGB(255, 145, 36);     // #FF9124 Warning / tail indicator
-static const COLORREF cRed          = RGB(245, 60, 94);      // #F53C5E Crimson alert
-static const COLORREF cTextPrimary  = RGB(255, 255, 255);    // #FFFFFF Stark pure white
-static const COLORREF cTextSecondary= RGB(212, 195, 248);    // #D4C3F8 Pale Lilac
-static const COLORREF cTextMuted    = RGB(140, 122, 178);    // #8C7AB2 Lavender mauve
+// Persona 5 Dark Purple Palette
+static const COLORREF cBg            = RGB(10, 7, 20);        // #0a0714 Midnight Abyss window background
+static const COLORREF cHeader        = RGB(14, 10, 26);       // #0e0a1a Top toolbar & header surface
+static const COLORREF cCard          = RGB(20, 13, 36);       // #140d24 Obsidian Violet Card
+static const COLORREF cCardHover     = RGB(32, 21, 56);       // #201538 Card Hover
+static const COLORREF cCardInner     = RGB(18, 10, 34);       // #120a22 Inset surfaces (plot, edit, badges)
+static const COLORREF cBorder        = RGB(58, 32, 90);       // #3a205a Divider & border dim
+static const COLORREF cBorderHi      = RGB(138, 43, 226);     // #8a2be2 Electric violet card borders
+static const COLORREF cBorderGlow    = RGB(217, 70, 239);     // #d946ef Neon magenta glow
+static const COLORREF cBlue          = RGB(224, 36, 195);     // #e024c3 Signature Neon Magenta
+static const COLORREF cBlueHover     = RGB(245, 85, 255);     // #f555ff
+static const COLORREF cMagenta       = RGB(224, 36, 195);     // #e024c3 Signature Neon Magenta
+static const COLORREF cMagentaHover  = RGB(245, 85, 255);     // #f555ff
+static const COLORREF cViolet        = RGB(138, 43, 226);     // #8a2be2 Electric Violet
+static const COLORREF cLilac         = RGB(168, 85, 247);     // #a855f7 Electric Lilac
+static const COLORREF cYellow        = RGB(255, 230, 0);      // #ffe600 Atlus Vivid Yellow
+static const COLORREF cCyan          = RGB(6, 198, 229);      // #06c6e5 Electric Cyan telemetry
+static const COLORREF cGreen         = RGB(0, 230, 118);      // #00e676 Emerald active indicator
+static const COLORREF cOrange        = RGB(255, 145, 36);     // #ff9124 Warning Amber
+static const COLORREF cRed           = RGB(245, 60, 94);      // #f53c5e Crimson alert
+static const COLORREF cBlack         = RGB(0, 0, 0);          // Comic Black
+static const COLORREF cTextPrimary   = RGB(255, 255, 255);    // #ffffff Pure White
+static const COLORREF cTextSecondary = RGB(212, 195, 248);    // #d4c3f8 Pale Lilac
+static const COLORREF cTextMuted     = RGB(154, 130, 190);    // #9a82be Muted Lavender
 
 static inline Gdiplus::Color gdColor(COLORREF c, BYTE alpha = 255) {
     return Gdiplus::Color(alpha, GetRValue(c), GetGValue(c), GetBValue(c));
 }
+
+// Global GDI+ Font Handles
+static Gdiplus::Font* g_pFontImpactHuge = nullptr;
+static Gdiplus::Font* g_pFontImpactHeader = nullptr;
+static Gdiplus::Font* g_pFontImpactBtn = nullptr;
+static Gdiplus::Font* g_pFontImpactTag = nullptr;
+static Gdiplus::Font* g_pFontSegoeBold = nullptr;
+static Gdiplus::Font* g_pFontSegoeRegular = nullptr;
+static Gdiplus::Font* g_pFontConsolas = nullptr;
 
 static HFONT fTitle, fSection, fLabel, fLabelBold, fBig, fSmall, fSmallBold, fBtn, fTab, fTabActive;
 static HBRUSH g_brEdit;
@@ -810,110 +823,111 @@ static void updateLayout(int w, int h) {
     if (w <= 0 || h <= 0) return;
     g_clientW = w; g_clientH = h;
 
-    // 1. Header Bar: y = 0..52
-    int bannerW = 136;
-    int bannerH = 32;
+    // 1. Header Bar: y = 8..46
+    int bannerW = 150;
+    int bannerH = 36;
     int bannerY = 10;
-    rcBanner = RECT{ w - 20 - bannerW, bannerY, w - 20, bannerY + bannerH };
+    rcBanner = RECT{ w - 24 - bannerW, bannerY, w - 24, bannerY + bannerH };
 
-    int nextW = 28;
-    rcHeaderNext = RECT{ rcBanner.left - 8 - nextW, bannerY, rcBanner.left - 8, bannerY + bannerH };
+    int nextW = 32;
+    rcHeaderNext = RECT{ rcBanner.left - 10 - nextW, bannerY, rcBanner.left - 10, bannerY + bannerH };
 
-    int presetW = 140;
-    rcHeaderPreset = RECT{ rcHeaderNext.left - 4 - presetW, bannerY, rcHeaderNext.left - 4, bannerY + bannerH };
+    int presetW = 150;
+    rcHeaderPreset = RECT{ rcHeaderNext.left - 6 - presetW, bannerY, rcHeaderNext.left - 6, bannerY + bannerH };
 
-    int prevW = 28;
-    rcHeaderPrev = RECT{ rcHeaderPreset.left - 4 - prevW, bannerY, rcHeaderPreset.left - 4, bannerY + bannerH };
+    int prevW = 32;
+    rcHeaderPrev = RECT{ rcHeaderPreset.left - 6 - prevW, bannerY, rcHeaderPreset.left - 6, bannerY + bannerH };
 
-    // Apple Segmented Tabs (centered in window width, bounded by toolbar items)
-    int tabH = 32;
-    int tabW = 110;
+    // Segmented Tabs
+    int tabH = 36;
+    int tabW = 120;
     int totalTabW = 3 * tabW;
     int tabX = (w - totalTabW) / 2;
-    if (tabX < 170) tabX = 170;
-    if (tabX + totalTabW > rcHeaderPrev.left - 12) tabX = max<int>(170, (int)(rcHeaderPrev.left - 12 - totalTabW));
+    if (tabX < 330) tabX = 330;
+    if (tabX + totalTabW > rcHeaderPrev.left - 12) tabX = max<int>(330, (int)(rcHeaderPrev.left - 12 - totalTabW));
     rcTabs[0] = RECT{ tabX, bannerY, tabX + tabW, bannerY + tabH };
     rcTabs[1] = RECT{ tabX + tabW, bannerY, tabX + 2 * tabW, bannerY + tabH };
     rcTabs[2] = RECT{ tabX + 2 * tabW, bannerY, tabX + 3 * tabW, bannerY + tabH };
 
-    // 2. Footer Bar: height 30
-    int footerTop = h - 30;
+    // 2. Footer Bar: height 32
+    int footerTop = h - 32;
 
     // 3. Card Containers (Left & Right)
     int cardMargin = 16;
-    int cardGap = 12;
-    int cardTop = 54;
+    int cardGap = 16;
+    int cardTop = 58;
     int cardBottom = footerTop - 8;
     int cardW = max(380, (w - 2 * cardMargin - cardGap) / 2);
     rcCardLeft = RECT{ cardMargin, cardTop, cardMargin + cardW, cardBottom };
     rcCardRight = RECT{ rcCardLeft.right + cardGap, cardTop, w - cardMargin, cardBottom };
 
-    // 4. Tab 0: Recoil Tuning (Equalized 7-row baseline across Sensitivity and Stabilization)
-    int colTop = cardTop + 48;
-    int colAvailH = cardBottom - 14 - colTop;
+    // 4. Tab 0: Recoil Tuning (7 rows per card, generous row height)
+    int colTop = cardTop + 54;
+    int colAvailH = cardBottom - 16 - colTop;
     int colRowH = colAvailH / 7;
 
     // Column 1 Sliders (6 sliders)
     for (int r = 0; r < 6; r++) {
         int i = kCol1Map[r];
         int y = colTop + r * colRowH;
-        rcSliderRows[i] = RECT{ rcCardLeft.left + 20, y, rcCardLeft.right - 20, y + colRowH };
-        rcSliderTracks[i] = RECT{ rcCardLeft.left + 20, y + 20, rcCardLeft.right - 20, y + 32 };
+        rcSliderRows[i] = RECT{ rcCardLeft.left + 32, y, rcCardLeft.right - 28, y + colRowH };
+        rcSliderTracks[i] = RECT{ rcCardLeft.left + 32, y + 26, rcCardLeft.right - 28, y + 38 };
     }
 
     // Column 2 Sliders (7 sliders)
     for (int r = 0; r < 7; r++) {
         int i = kCol2Map[r];
         int y = colTop + r * colRowH;
-        rcSliderRows[i] = RECT{ rcCardRight.left + 20, y, rcCardRight.right - 20, y + colRowH };
-        rcSliderTracks[i] = RECT{ rcCardRight.left + 20, y + 20, rcCardRight.right - 20, y + 32 };
+        rcSliderRows[i] = RECT{ rcCardRight.left + 32, y, rcCardRight.right - 28, y + colRowH };
+        rcSliderTracks[i] = RECT{ rcCardRight.left + 32, y + 26, rcCardRight.right - 28, y + 38 };
     }
 
     // 5. Tab 1: Pattern & Vision
-    int plotTop = cardTop + 48;
-    int plotH = min(240, (cardBottom - plotTop - 20) * 56 / 100);
-    rcPlot = RECT{ rcCardLeft.left + 20, plotTop, rcCardLeft.right - 20, plotTop + plotH };
-    rcTelem = RECT{ rcCardLeft.left + 20, rcPlot.bottom + 8, rcCardLeft.right - 20, cardBottom - 12 };
+    int plotTop = cardTop + 54;
+    int plotH = min(280, (cardBottom - plotTop - 20) * 58 / 100);
+    rcPlot = RECT{ rcCardLeft.left + 28, plotTop, rcCardLeft.right - 28, plotTop + plotH };
+    rcTelem = RECT{ rcCardLeft.left + 28, rcPlot.bottom + 10, rcCardLeft.right - 28, cardBottom - 14 };
 
-    int pvBtnTop = cardTop + 48;
-    int pvHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
-    rcSelect = RECT{ rcCardRight.left + 20, pvBtnTop, rcCardRight.left + 20 + pvHalfW, pvBtnTop + 32 };
-    rcPaste = RECT{ rcSelect.right + 10, pvBtnTop, rcCardRight.right - 20, pvBtnTop + 32 };
-    rcCalib = RECT{ rcCardRight.left + 20, rcSelect.bottom + 8, rcCardRight.left + 20 + pvHalfW, rcSelect.bottom + 40 };
-    rcCross = RECT{ rcCalib.right + 10, rcSelect.bottom + 8, rcCardRight.right - 20, rcSelect.bottom + 40 };
-    rcMode = RECT{ rcCardRight.left + 20, rcCalib.bottom + 8, rcCardRight.right - 20, rcCalib.bottom + 40 };
-    rcBadge = RECT{ rcCardRight.left + 20, rcMode.bottom + 10, rcCardRight.right - 20, cardBottom - 12 };
+    int pvBtnTop = cardTop + 54;
+    int pvHalfW = (rcCardRight.right - rcCardRight.left - 56 - 12) / 2;
+    rcSelect = RECT{ rcCardRight.left + 28, pvBtnTop, rcCardRight.left + 28 + pvHalfW, pvBtnTop + 34 };
+    rcPaste = RECT{ rcSelect.right + 12, pvBtnTop, rcCardRight.right - 28, pvBtnTop + 34 };
+    rcCalib = RECT{ rcCardRight.left + 28, rcSelect.bottom + 10, rcCardRight.left + 28 + pvHalfW, rcSelect.bottom + 44 };
+    rcCross = RECT{ rcCalib.right + 12, rcSelect.bottom + 10, rcCardRight.right - 28, rcSelect.bottom + 44 };
+    rcMode = RECT{ rcCardRight.left + 28, rcCalib.bottom + 10, rcCardRight.right - 28, rcCalib.bottom + 44 };
+    rcBadge = RECT{ rcCardRight.left + 28, rcMode.bottom + 12, rcCardRight.right - 28, cardBottom - 14 };
 
     // 6. Tab 2: Presets & Config
-    int prTop = cardTop + 48;
-    rcPresets = RECT{ rcCardLeft.left + 20, prTop, rcCardLeft.right - 20, prTop + PRESET_ROWS * PRESET_H };
-    int prBtnY1 = rcPresets.bottom + 12;
-    int prThirdW = (rcCardLeft.right - rcCardLeft.left - 40 - 16) / 3;
-    rcNew = RECT{ rcCardLeft.left + 20, prBtnY1, rcCardLeft.left + 20 + prThirdW, prBtnY1 + 32 };
-    rcDel = RECT{ rcNew.right + 8, prBtnY1, rcNew.right + 8 + prThirdW, prBtnY1 + 32 };
-    rcSave = RECT{ rcDel.right + 8, prBtnY1, rcCardLeft.right - 20, prBtnY1 + 32 };
-    int prBtnY2 = prBtnY1 + 38;
-    int prHalfW = (rcCardLeft.right - rcCardLeft.left - 40 - 10) / 2;
-    rcReset = RECT{ rcCardLeft.left + 20, prBtnY2, rcCardLeft.left + 20 + prHalfW, prBtnY2 + 32 };
-    rcReload = RECT{ rcReset.right + 10, prBtnY2, rcCardLeft.right - 20, prBtnY2 + 32 };
+    int prTop = cardTop + 54;
+    int prRowH = 44;
+    rcPresets = RECT{ rcCardLeft.left + 28, prTop, rcCardLeft.right - 28, prTop + PRESET_ROWS * prRowH };
+    int prBtnY1 = rcPresets.bottom + 14;
+    int prThirdW = (rcCardLeft.right - rcCardLeft.left - 56 - 16) / 3;
+    rcNew = RECT{ rcCardLeft.left + 28, prBtnY1, rcCardLeft.left + 28 + prThirdW, prBtnY1 + 34 };
+    rcDel = RECT{ rcNew.right + 8, prBtnY1, rcNew.right + 8 + prThirdW, prBtnY1 + 34 };
+    rcSave = RECT{ rcDel.right + 8, prBtnY1, rcCardLeft.right - 28, prBtnY1 + 34 };
+    int prBtnY2 = prBtnY1 + 42;
+    int prHalfW = (rcCardLeft.right - rcCardLeft.left - 56 - 12) / 2;
+    rcReset = RECT{ rcCardLeft.left + 28, prBtnY2, rcCardLeft.left + 28 + prHalfW, prBtnY2 + 34 };
+    rcReload = RECT{ rcReset.right + 12, prBtnY2, rcCardLeft.right - 28, prBtnY2 + 34 };
 
-    int cfgTop = cardTop + 48;
-    int rowH = 46;
-    rcHotkey = RECT{ rcCardRight.right - 20 - 90, cfgTop, rcCardRight.right - 20, cfgTop + 32 };
+    int cfgTop = cardTop + 54;
+    int rowH = 50;
+    rcHotkey = RECT{ rcCardRight.right - 28 - 110, cfgTop, rcCardRight.right - 28, cfgTop + 34 };
     int adsY = cfgTop + rowH;
-    rcAdsSwitch = RECT{ rcCardRight.right - 20 - 44, adsY + 4, rcCardRight.right - 20, adsY + 26 };
-    rcAds = RECT{ rcCardRight.left + 20, adsY, rcCardRight.right - 20, adsY + 32 };
+    rcAdsSwitch = RECT{ rcCardRight.right - 28 - 48, adsY + 4, rcCardRight.right - 28, adsY + 28 };
+    rcAds = RECT{ rcCardRight.left + 28, adsY, rcCardRight.right - 28, adsY + 34 };
     int bldLblY = adsY + rowH + 8;
-    rcBuildEdit = RECT{ rcCardRight.left + 20, bldLblY + 26, rcCardRight.right - 20, bldLblY + 62 };
-    int bldHalfW = (rcCardRight.right - rcCardRight.left - 40 - 10) / 2;
-    rcCopyBuild = RECT{ rcCardRight.left + 20, rcBuildEdit.bottom + 12, rcCardRight.left + 20 + bldHalfW, rcBuildEdit.bottom + 46 };
-    rcPasteBuild = RECT{ rcCopyBuild.right + 10, rcBuildEdit.bottom + 12, rcCardRight.right - 20, rcBuildEdit.bottom + 46 };
+    rcBuildEdit = RECT{ rcCardRight.left + 28, bldLblY + 28, rcCardRight.right - 28, bldLblY + 68 };
+    int bldHalfW = (rcCardRight.right - rcCardRight.left - 56 - 12) / 2;
+    rcCopyBuild = RECT{ rcCardRight.left + 28, rcBuildEdit.bottom + 14, rcCardRight.left + 28 + bldHalfW, rcBuildEdit.bottom + 48 };
+    rcPasteBuild = RECT{ rcCopyBuild.right + 12, rcBuildEdit.bottom + 14, rcCardRight.right - 28, rcBuildEdit.bottom + 48 };
 
     if (g_editBuild) {
         SetWindowPos(g_editBuild, nullptr,
-                     rcBuildEdit.left + 6, rcBuildEdit.top + 6,
-                     (rcBuildEdit.right - rcBuildEdit.left) - 12,
-                     (rcBuildEdit.bottom - rcBuildEdit.top) - 12,
+                     rcBuildEdit.left + 8, rcBuildEdit.top + 8,
+                     (rcBuildEdit.right - rcBuildEdit.left) - 16,
+                     (rcBuildEdit.bottom - rcBuildEdit.top) - 16,
                      SWP_NOZORDER | SWP_NOACTIVATE);
     }
 }
@@ -949,7 +963,203 @@ static void fillRect(HDC dc, RECT r, COLORREF c) {
     HBRUSH b = CreateSolidBrush(c); FillRect(dc, &r, b); DeleteObject(b);
 }
 
-// ------------------------------------------------------------ Atlus Stylized Geometry & Drawing Helpers
+// ------------------------------------------------------------ Persona 5 GDI+ Stylized Geometry & Drawing Helpers
+static void drawHalftoneBackdrop(Gdiplus::Graphics& g, int w, int h) {
+    // 1. Base dark abyss background (#0a0714)
+    Gdiplus::SolidBrush bgBr(Gdiplus::Color(255, 10, 7, 20));
+    g.FillRectangle(&bgBr, 0, 0, w, h);
+
+    // 2. Magenta edge comic slash line
+    Gdiplus::Pen slashPen(Gdiplus::Color(60, 224, 36, 195), 4.0f);
+    g.DrawLine(&slashPen, (float)w * 0.52f, 0.0f, 0.0f, (float)h * 0.65f);
+
+    // Secondary subtle lower-right comic slash polygon
+    Gdiplus::PointF slashPoly[3] = {
+        Gdiplus::PointF((float)w, (float)h * 0.30f),
+        Gdiplus::PointF((float)w, (float)h),
+        Gdiplus::PointF((float)w * 0.45f, (float)h)
+    };
+    Gdiplus::SolidBrush polyBr(Gdiplus::Color(20, 168, 85, 247));
+    g.FillPolygon(&polyBr, slashPoly, 3);
+
+    // 3. Diagonal comic strip pattern (-45 degrees)
+    float step = 34.0f;
+    float stripeW = 10.0f;
+    Gdiplus::Pen stripePen(Gdiplus::Color(45, 0, 0, 0), stripeW);
+    for (float d = -(float)h; d < (float)(w + h); d += step) {
+        g.DrawLine(&stripePen, d, 0.0f, d - (float)h, (float)h);
+    }
+
+    // 4. Comic halftone dot matrix
+    float dotSpacing = 20.0f;
+    float maxDist = sqrtf((float)(w * w + h * h));
+    for (float y = 10.0f; y < (float)h; y += dotSpacing) {
+        for (float x = 10.0f; x < (float)w; x += dotSpacing) {
+            float dist = sqrtf(x * x + y * y);
+            float t = 1.0f - (dist / maxDist);
+            if (t < 0.0f) t = 0.0f;
+            float r = 1.0f + t * 1.5f;
+            BYTE alpha = (BYTE)(14 + t * 28);
+            Gdiplus::SolidBrush dBr(Gdiplus::Color(alpha, 210, 180, 255));
+            g.FillRectangle(&dBr, x - r, y - r, r * 2.0f, r * 2.0f);
+        }
+    }
+}
+
+static void drawSkewCard(Gdiplus::Graphics& g, const RECT& r, Gdiplus::Color fillCol,
+                         float skewAngleDeg = -4.5f, float borderWidth = 3.0f,
+                         float shadowOffset = 6.0f, Gdiplus::Color accentCol = Gdiplus::Color(255, 138, 43, 226)) {
+    float height = (float)(r.bottom - r.top);
+    float rad = skewAngleDeg * (3.14159265f / 180.0f);
+    float slant = height * fabsf(tanf(rad));
+
+    Gdiplus::PointF poly[4] = {
+        Gdiplus::PointF((float)r.left + slant, (float)r.top),
+        Gdiplus::PointF((float)r.right - shadowOffset, (float)r.top),
+        Gdiplus::PointF((float)r.right - slant - shadowOffset, (float)r.bottom - shadowOffset),
+        Gdiplus::PointF((float)r.left, (float)r.bottom - shadowOffset)
+    };
+
+    // 1. 6.0px Solid Black Comic Drop Shadow
+    Gdiplus::PointF shadowPoly[4] = {
+        Gdiplus::PointF(poly[0].X + shadowOffset, poly[0].Y + shadowOffset),
+        Gdiplus::PointF(poly[1].X + shadowOffset, poly[1].Y + shadowOffset),
+        Gdiplus::PointF(poly[2].X + shadowOffset, poly[2].Y + shadowOffset),
+        Gdiplus::PointF(poly[3].X + shadowOffset, poly[3].Y + shadowOffset)
+    };
+    Gdiplus::SolidBrush shadowBr(Gdiplus::Color(255, 0, 0, 0));
+    g.FillPolygon(&shadowBr, shadowPoly, 4);
+
+    // 2. Card Body Fill (Obsidian Violet #140d24)
+    Gdiplus::SolidBrush fillBr(fillCol);
+    g.FillPolygon(&fillBr, poly, 4);
+
+    // 3. Left Edge Accent Ribbon
+    float ribbonW = 5.0f;
+    Gdiplus::PointF ribbonPoly[4] = {
+        Gdiplus::PointF(poly[0].X, poly[0].Y),
+        Gdiplus::PointF(poly[0].X + ribbonW, poly[0].Y),
+        Gdiplus::PointF(poly[3].X + ribbonW, poly[3].Y),
+        Gdiplus::PointF(poly[3].X, poly[3].Y)
+    };
+    Gdiplus::SolidBrush ribbonBr(accentCol);
+    g.FillPolygon(&ribbonBr, ribbonPoly, 4);
+
+    // 4. 3.0px Solid Black Ink Border
+    Gdiplus::Pen penBorder(Gdiplus::Color(255, 0, 0, 0), borderWidth);
+    penBorder.SetLineJoin(Gdiplus::LineJoinMiter);
+    g.DrawPolygon(&penBorder, poly, 4);
+}
+
+static void drawRansomBadge(Gdiplus::Graphics& g, const std::string& textStr,
+                            float cx, float cy, float w, float h, float angleDeg,
+                            Gdiplus::Color bgCol, Gdiplus::Color textCol,
+                            Gdiplus::Font* font, float shadowOffset = 3.5f) {
+    float rad = angleDeg * (3.14159265f / 180.0f);
+    float cosA = cosf(rad);
+    float sinA = sinf(rad);
+
+    float halfW = w * 0.5f;
+    float halfH = h * 0.5f;
+
+    Gdiplus::PointF localPts[4] = {
+        Gdiplus::PointF(-halfW, -halfH),
+        Gdiplus::PointF( halfW, -halfH),
+        Gdiplus::PointF( halfW,  halfH),
+        Gdiplus::PointF(-halfW,  halfH)
+    };
+
+    Gdiplus::PointF rot[4];
+    Gdiplus::PointF shadow[4];
+    for (int i = 0; i < 4; i++) {
+        rot[i].X = cx + localPts[i].X * cosA - localPts[i].Y * sinA;
+        rot[i].Y = cy + localPts[i].X * sinA + localPts[i].Y * cosA;
+        shadow[i].X = rot[i].X + shadowOffset;
+        shadow[i].Y = rot[i].Y + shadowOffset;
+    }
+
+    // 1. Solid Black Comic Drop Shadow
+    Gdiplus::SolidBrush shadowBr(Gdiplus::Color(255, 0, 0, 0));
+    g.FillPolygon(&shadowBr, shadow, 4);
+
+    // 2. Tile Fill
+    Gdiplus::SolidBrush fillBr(bgCol);
+    g.FillPolygon(&fillBr, rot, 4);
+
+    // 3. 2.5px Solid Black Ink Border
+    Gdiplus::Pen penBorder(Gdiplus::Color(255, 0, 0, 0), 2.5f);
+    penBorder.SetLineJoin(Gdiplus::LineJoinMiter);
+    g.DrawPolygon(&penBorder, rot, 4);
+
+    // 4. Rotated Centered Text
+    if (!textStr.empty() && font) {
+        Gdiplus::Matrix oldMat;
+        g.GetTransform(&oldMat);
+        g.TranslateTransform(cx, cy);
+        g.RotateTransform(angleDeg);
+
+        Gdiplus::StringFormat sf;
+        sf.SetAlignment(Gdiplus::StringAlignmentCenter);
+        sf.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+        sf.SetFormatFlags(Gdiplus::StringFormatFlagsNoWrap);
+
+        std::wstring ws = toWString(textStr);
+        Gdiplus::RectF rectF(-halfW, -halfH, w, h);
+        Gdiplus::SolidBrush textBr(textCol);
+        g.DrawString(ws.c_str(), -1, font, rectF, &sf, &textBr);
+
+        g.SetTransform(&oldMat);
+    }
+}
+
+static void drawComicButton(Gdiplus::Graphics& g, const RECT& r, const std::string& label,
+                            Gdiplus::Color fillCol, Gdiplus::Color textCol,
+                            Gdiplus::Font* font, float slant = 7.0f,
+                            bool isSelected = false, float shadowOffset = 3.0f) {
+    float height = (float)(r.bottom - r.top);
+    float width = (float)(r.right - r.left);
+
+    Gdiplus::PointF poly[4] = {
+        Gdiplus::PointF((float)r.left + slant, (float)r.top),
+        Gdiplus::PointF((float)r.right - shadowOffset, (float)r.top),
+        Gdiplus::PointF((float)r.right - slant - shadowOffset, (float)r.bottom - shadowOffset),
+        Gdiplus::PointF((float)r.left, (float)r.bottom - shadowOffset)
+    };
+
+    // 1. Comic Drop Shadow
+    Gdiplus::PointF shadowPoly[4] = {
+        Gdiplus::PointF(poly[0].X + shadowOffset, poly[0].Y + shadowOffset),
+        Gdiplus::PointF(poly[1].X + shadowOffset, poly[1].Y + shadowOffset),
+        Gdiplus::PointF(poly[2].X + shadowOffset, poly[2].Y + shadowOffset),
+        Gdiplus::PointF(poly[3].X + shadowOffset, poly[3].Y + shadowOffset)
+    };
+    Gdiplus::SolidBrush shadowBr(Gdiplus::Color(255, 0, 0, 0));
+    g.FillPolygon(&shadowBr, shadowPoly, 4);
+
+    // 2. Button Body Fill
+    Gdiplus::SolidBrush fillBr(fillCol);
+    g.FillPolygon(&fillBr, poly, 4);
+
+    // 3. Ink Border
+    float borderWidth = isSelected ? 2.5f : 2.0f;
+    Gdiplus::Pen penBorder(isSelected ? Gdiplus::Color(255, 224, 36, 195) : Gdiplus::Color(255, 0, 0, 0), borderWidth);
+    penBorder.SetLineJoin(Gdiplus::LineJoinMiter);
+    g.DrawPolygon(&penBorder, poly, 4);
+
+    // 4. Centered Uppercase Text
+    if (!label.empty() && font) {
+        Gdiplus::StringFormat sf;
+        sf.SetAlignment(Gdiplus::StringAlignmentCenter);
+        sf.SetLineAlignment(Gdiplus::StringAlignmentCenter);
+        sf.SetFormatFlags(Gdiplus::StringFormatFlagsNoWrap);
+
+        std::wstring ws = toWString(label);
+        Gdiplus::RectF rectF((float)r.left, (float)r.top, width - shadowOffset, height - shadowOffset);
+        Gdiplus::SolidBrush textBr(textCol);
+        g.DrawString(ws.c_str(), -1, font, rectF, &sf, &textBr);
+    }
+}
+
 static void addChamferPath(Gdiplus::GraphicsPath& path, float x, float y, float w, float h, float c) {
     if (c * 2 > w) c = w / 2;
     if (c * 2 > h) c = h / 2;
@@ -978,29 +1188,6 @@ static void drawChamferRect(Gdiplus::Graphics& g, int x, int y, int w, int h, in
     g.DrawPath(&pen, &path);
 }
 
-static void addSlantedPath(Gdiplus::GraphicsPath& path, float x, float y, float w, float h, float slant) {
-    path.AddLine(x + slant, y, x + w, y);
-    path.AddLine(x + w, y, x + w - slant, y + h);
-    path.AddLine(x + w - slant, y + h, x, y + h);
-    path.AddLine(x, y + h, x + slant, y);
-    path.CloseFigure();
-}
-
-static void fillSlantedPoly(Gdiplus::Graphics& g, int x, int y, int w, int h, float slant, Gdiplus::Color color) {
-    Gdiplus::GraphicsPath path;
-    addSlantedPath(path, (float)x, (float)y, (float)w, (float)h, slant);
-    Gdiplus::SolidBrush brush(color);
-    g.FillPath(&brush, &path);
-}
-
-static void drawSlantedPoly(Gdiplus::Graphics& g, int x, int y, int w, int h, float slant, Gdiplus::Color color, float width = 1.0f) {
-    Gdiplus::GraphicsPath path;
-    addSlantedPath(path, (float)x, (float)y, (float)w, (float)h, slant);
-    Gdiplus::Pen pen(color, width);
-    g.DrawPath(&pen, &path);
-}
-
-// Redirect classic rounded calls to Atlus razor-sharp chamfers
 static void fillRoundRect(Gdiplus::Graphics& g, int x, int y, int w, int h, int radius, Gdiplus::Color color) {
     fillChamferRect(g, x, y, w, h, (std::min)(5, radius), color);
 }
@@ -1055,80 +1242,51 @@ static void drawLogo(Gdiplus::Graphics& g, float cx, float cy, float size, Gdipl
 // Atlus Angular Toggle Switch
 static void drawAppleSwitch(Gdiplus::Graphics& g, const RECT& r, bool on) {
     int w = r.right - r.left, h = r.bottom - r.top;
-    Gdiplus::Color trackCol = on ? gdColor(cMagenta) : gdColor(cCardInner);
+    Gdiplus::Color trackCol = on ? Gdiplus::Color(255, 224, 36, 195) : Gdiplus::Color(255, 18, 10, 34);
     fillChamferRect(g, r.left, r.top, w, h, 4, trackCol);
-    drawChamferRect(g, r.left, r.top, w, h, 4, on ? gdColor(cBorderGlow) : gdColor(cBorder), 1.2f);
+    drawChamferRect(g, r.left, r.top, w, h, 4, Gdiplus::Color(255, 0, 0, 0), 1.8f);
 
     float knobW = (float)(h - 6);
     float knobX = on ? (float)(r.right - 3 - knobW) : (float)(r.left + 3);
     float knobY = (float)(r.top + 3);
 
-    fillChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, gdColor(cTextPrimary));
-    drawChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, on ? gdColor(cMagenta) : gdColor(cBorder), 1.0f);
+    fillChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, Gdiplus::Color(255, 255, 255, 255));
+    drawChamferRect(g, (int)knobX, (int)knobY, (int)knobW, (int)knobW, 3, Gdiplus::Color(255, 0, 0, 0), 1.2f);
 }
 
 // Atlus Slanted Status Badge
 static void drawStatusPill(Gdiplus::Graphics& g, HDC dc, const RECT& r, bool active, const std::string& hotkey) {
-    int w = r.right - r.left, h = r.bottom - r.top;
-    Gdiplus::Color bg = active ? Gdiplus::Color(255, 38, 18, 56) : gdColor(cCardInner);
-    Gdiplus::Color border = active ? gdColor(cMagenta) : gdColor(cBorder);
-
-    fillChamferRect(g, r.left, r.top, w, h, 6, bg);
-    drawChamferRect(g, r.left, r.top, w, h, 6, border, active ? 1.6f : 1.0f);
-
-    float dotX = (float)(r.left + 14);
-    float dotY = (float)(r.top + h / 2);
-    if (active) {
-        Gdiplus::PointF arrow[3] = {
-            Gdiplus::PointF(dotX - 4.0f, dotY - 6.0f),
-            Gdiplus::PointF(dotX + 4.0f, dotY),
-            Gdiplus::PointF(dotX - 4.0f, dotY + 6.0f)
-        };
-        Gdiplus::SolidBrush dotBr(gdColor(cMagenta));
-        g.FillPolygon(&dotBr, arrow, 3);
-    } else {
-        Gdiplus::SolidBrush dotBr(gdColor(cTextMuted));
-        g.FillRectangle(&dotBr, dotX - 3.0f, dotY - 5.0f, 6.0f, 10.0f);
-    }
-    g.Flush();
-
-    std::string textStr = active ? ("ENGAGED · " + hotkey) : ("STANDBY · " + hotkey);
-    SelectObject(dc, fBtn);
-    SetTextColor(dc, active ? cTextPrimary : cTextSecondary);
-    SetBkMode(dc, TRANSPARENT);
-    RECT tr = RECT{ r.left + 26, r.top, r.right - 8, r.bottom };
-    std::wstring wText = toWString(textStr);
-    DrawTextW(dc, wText.c_str(), -1, &tr, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+    (void)dc;
+    std::string textStr = active ? ("MASTER: ON [" + hotkey + "]") : ("MASTER: OFF [" + hotkey + "]");
+    Gdiplus::Color bg = active ? Gdiplus::Color(255, 224, 36, 195) : Gdiplus::Color(255, 0, 0, 0);
+    Gdiplus::Color border = active ? Gdiplus::Color(255, 255, 255, 255) : Gdiplus::Color(255, 245, 60, 94);
+    float midX = (float)(r.left + r.right) * 0.5f;
+    float midY = (float)(r.top + r.bottom) * 0.5f;
+    float w = (float)(r.right - r.left);
+    float h = (float)(r.bottom - r.top);
+    drawRansomBadge(g, textStr, midX, midY, w, h, 1.5f, bg, border, g_pFontImpactBtn, 3.0f);
 }
 
-// Atlus Chamfered Button
+// Slanted Comic Button
 static void pillButton(Gdiplus::Graphics& g, HDC dc, const RECT& r, const std::string& label,
                        COLORREF bgCol, COLORREF textCol, COLORREF borderCol, bool hasBorder = true, HFONT font = nullptr) {
-    int w = r.right - r.left, h = r.bottom - r.top;
-    fillChamferRect(g, r.left, r.top, w, h, 5, gdColor(bgCol));
-    if (hasBorder) {
-        drawChamferRect(g, r.left, r.top, w, h, 5, gdColor(borderCol), 1.0f);
-    }
-    g.Flush();
-    HFONT f = font ? font : fBtn;
-    SelectObject(dc, f); SetTextColor(dc, textCol); SetBkMode(dc, TRANSPARENT);
-    RECT tr = r;
-    std::wstring ws = toWString(label);
-    DrawTextW(dc, ws.c_str(), -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+    (void)dc; (void)borderCol; (void)hasBorder; (void)font;
+    drawComicButton(g, r, label, gdColor(bgCol), gdColor(textCol), g_pFontImpactBtn, 6.0f, false, 2.5f);
 }
 
-// Atlus Angular Card Container with Left Slash Ribbon
+// Atlus -4.5 Skewed Polygon Card Container with Tilted Ransom Badge Title
 static void cardContainer(Gdiplus::Graphics& g, HDC dc, const RECT& r, const std::string& title) {
-    int w = r.right - r.left, h = r.bottom - r.top;
-    fillChamferRect(g, r.left, r.top, w, h, 8, gdColor(cCard));
-    drawChamferRect(g, r.left, r.top, w, h, 8, gdColor(cBorder), 1.2f);
+    (void)dc;
+    drawSkewCard(g, r, Gdiplus::Color(255, 20, 13, 36), -4.5f, 3.0f, 6.0f, Gdiplus::Color(255, 224, 36, 195));
 
-    Gdiplus::SolidBrush ribbonBr(gdColor(cMagenta));
-    g.FillRectangle(&ribbonBr, r.left, r.top + 10, 4, 26);
-    g.Flush();
     if (!title.empty()) {
-        std::string atlusTitle = "▲ " + title;
-        text(dc, atlusTitle, r.left + 16, r.top + 14, fSection, cTextPrimary);
+        float slant = (float)(r.bottom - r.top) * 0.0787f;
+        float tagX = (float)r.left + slant + 24.0f;
+        float tagY = (float)r.top + 14.0f;
+        float tagW = (float)(title.length() * 11 + 28);
+        float tagH = 28.0f;
+        drawRansomBadge(g, title, tagX + tagW * 0.5f, tagY + tagH * 0.5f, tagW, tagH, -2.5f,
+                        Gdiplus::Color(255, 224, 36, 195), Gdiplus::Color(255, 255, 255, 255), g_pFontImpactHeader, 3.0f);
     }
 }
 
@@ -1261,55 +1419,41 @@ static void paint(HDC dc, RECT cr) {
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     g.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
 
-    // 1. Base dark background
-    fillRect(dc, cr, cBg);
+    // 1. Comic Halftone dot matrix backdrop
+    drawHalftoneBackdrop(g, cr.right, cr.bottom);
 
-    // 2. Header Bar
+    // 2. Top Header Bar
     fillRect(dc, RECT{0, 0, cr.right, 52}, cHeader);
-    HPEN penSep = CreatePen(PS_SOLID, 1, cBorder);
+    HPEN penSep = CreatePen(PS_SOLID, 2, cBorderHi);
     HGDIOBJ opSep = SelectObject(dc, penSep);
     MoveToEx(dc, 0, 52, nullptr);
     LineTo(dc, cr.right, 52);
     SelectObject(dc, opSep);
     DeleteObject(penSep);
 
-    // Left Title + Logo
-    drawLogo(g, 32.0f, 26.0f, 18.0f, gdColor(cMagenta));
-    text(dc, "DF-RECOIL // YONAH", 48, 17, fTitle, cTextPrimary);
+    // Left Title: Calling Card Ransom Badges
+    drawLogo(g, 30.0f, 26.0f, 18.0f, gdColor(cMagenta));
+    drawRansomBadge(g, "DF-RECOIL", 100.0f, 26.0f, 96.0f, 28.0f, -2.5f,
+                    Gdiplus::Color(255, 224, 36, 195), Gdiplus::Color(255, 255, 255, 255),
+                    g_pFontImpactHeader, 3.5f);
+    drawRansomBadge(g, "YONAH", 180.0f, 26.0f, 58.0f, 28.0f, 2.0f,
+                    Gdiplus::Color(255, 255, 230, 0), Gdiplus::Color(255, 0, 0, 0),
+                    g_pFontImpactHeader, 3.5f);
 
     // Center: Atlus Segmented Tabs
-    int totalTabW = rcTabs[2].right - rcTabs[0].left;
-    int tabH = rcTabs[0].bottom - rcTabs[0].top;
-    fillChamferRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, totalTabW + 4, tabH + 4, 5, gdColor(cCardInner));
-    drawChamferRect(g, rcTabs[0].left - 2, rcTabs[0].top - 2, totalTabW + 4, tabH + 4, 5, gdColor(cBorder), 1.0f);
-
     const char* tabNames[3] = {"RECOIL", "TRAJECTORY", "PRESETS"};
     for (int i = 0; i < 3; i++) {
         bool active = (g_tab == i);
-        if (active) {
-            fillChamferRect(g, rcTabs[i].left, rcTabs[i].top, rcTabs[i].right - rcTabs[i].left, rcTabs[i].bottom - rcTabs[i].top, 4, gdColor(cMagenta));
-            drawChamferRect(g, rcTabs[i].left, rcTabs[i].top, rcTabs[i].right - rcTabs[i].left, rcTabs[i].bottom - rcTabs[i].top, 4, gdColor(cBorderGlow), 1.0f);
-        }
-        g.Flush();
-        SelectObject(dc, active ? fTabActive : fTab);
-        SetTextColor(dc, active ? cTextPrimary : cTextMuted);
-        SetBkMode(dc, TRANSPARENT);
-        RECT tr = rcTabs[i];
-        std::wstring wName = toWString(tabNames[i]);
-        DrawTextW(dc, wName.c_str(), -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        Gdiplus::Color bgTab = active ? Gdiplus::Color(255, 224, 36, 195) : Gdiplus::Color(255, 20, 13, 36);
+        Gdiplus::Color fgTab = active ? Gdiplus::Color(255, 255, 255, 255) : Gdiplus::Color(255, 154, 130, 190);
+        drawComicButton(g, rcTabs[i], tabNames[i], bgTab, fgTab, g_pFontImpactBtn, 6.0f, active, active ? 3.5f : 2.0f);
     }
 
     // Right: Quick Preset Switcher
-    fillChamferRect(g, rcHeaderPrev.left, rcHeaderPrev.top, rcHeaderPrev.right - rcHeaderPrev.left, rcHeaderPrev.bottom - rcHeaderPrev.top, 5, gdColor(cCard));
-    drawChamferRect(g, rcHeaderPrev.left, rcHeaderPrev.top, rcHeaderPrev.right - rcHeaderPrev.left, rcHeaderPrev.bottom - rcHeaderPrev.top, 5, gdColor(cBorder), 1.0f);
-    drawChevron(g, (float)(rcHeaderPrev.left + rcHeaderPrev.right) / 2.0f, (float)(rcHeaderPrev.top + rcHeaderPrev.bottom) / 2.0f, 6.0f, true, gdColor(cTextSecondary));
-
+    drawComicButton(g, rcHeaderPrev, "<", Gdiplus::Color(255, 20, 13, 36), Gdiplus::Color(255, 212, 195, 248), g_pFontImpactBtn, 4.0f, false, 2.0f);
     std::string curPresetName = g_presets.empty() ? "" : g_presets[g_sel].name;
-    pillButton(g, dc, rcHeaderPreset, curPresetName, cCard, cTextPrimary, cBorder, true, fBtn);
-
-    fillChamferRect(g, rcHeaderNext.left, rcHeaderNext.top, rcHeaderNext.right - rcHeaderNext.left, rcHeaderNext.bottom - rcHeaderNext.top, 5, gdColor(cCard));
-    drawChamferRect(g, rcHeaderNext.left, rcHeaderNext.top, rcHeaderNext.right - rcHeaderNext.left, rcHeaderNext.bottom - rcHeaderNext.top, 5, gdColor(cBorder), 1.0f);
-    drawChevron(g, (float)(rcHeaderNext.left + rcHeaderNext.right) / 2.0f, (float)(rcHeaderNext.top + rcHeaderNext.bottom) / 2.0f, 6.0f, false, gdColor(cTextSecondary));
+    drawComicButton(g, rcHeaderPreset, curPresetName, Gdiplus::Color(255, 20, 13, 36), Gdiplus::Color(255, 255, 255, 255), g_pFontImpactBtn, 6.0f, false, 2.5f);
+    drawComicButton(g, rcHeaderNext, ">", Gdiplus::Color(255, 20, 13, 36), Gdiplus::Color(255, 212, 195, 248), g_pFontImpactBtn, 4.0f, false, 2.0f);
 
     // Master Status Pill
     const Preset& P = g_presets[g_sel];
@@ -1326,26 +1470,39 @@ static void paint(HDC dc, RECT cr) {
             int i = kCol1Map[r];
             RECT rowRc = rcSliderRows[i];
             text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabelBold, cTextPrimary);
-            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cMagenta, DT_RIGHT);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cYellow, DT_RIGHT);
             RECT t = rcSliderTracks[i];
-            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 5, 2, gdColor(cBorder));
+            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 6, 2, Gdiplus::Color(255, 10, 7, 20));
+            drawChamferRect(g, t.left, t.top + 4, t.right - t.left, 6, 2, Gdiplus::Color(255, 58, 32, 90), 1.0f);
             double f = std::clamp((sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo), 0.0, 1.0);
             int kx = t.left + (int)(f * (t.right - t.left));
-            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 5, 2, gdColor(cMagenta));
+            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 6, 2, Gdiplus::Color(255, 224, 36, 195));
 
             // Atlus Diamond Thumb
-            float cy = (float)(t.top + 6);
-            float dSize = 7.0f;
+            float cy = (float)(t.top + 7);
+            float dSize = 8.0f;
+            Gdiplus::PointF dShadow[4] = {
+                Gdiplus::PointF((float)kx + 2.0f, cy - dSize + 2.0f),
+                Gdiplus::PointF((float)kx + dSize + 2.0f, cy + 2.0f),
+                Gdiplus::PointF((float)kx + 2.0f, cy + dSize + 2.0f),
+                Gdiplus::PointF((float)kx - dSize + 2.0f, cy + 2.0f)
+            };
+            Gdiplus::SolidBrush brShadow(Gdiplus::Color(255, 0, 0, 0));
+            g.FillPolygon(&brShadow, dShadow, 4);
+
             Gdiplus::PointF dPts[4] = {
                 Gdiplus::PointF((float)kx, cy - dSize),
                 Gdiplus::PointF((float)kx + dSize, cy),
                 Gdiplus::PointF((float)kx, cy + dSize),
                 Gdiplus::PointF((float)kx - dSize, cy)
             };
-            Gdiplus::SolidBrush brThumb(gdColor(cTextPrimary));
+            Gdiplus::SolidBrush brThumb(Gdiplus::Color(255, 255, 255, 255));
             g.FillPolygon(&brThumb, dPts, 4);
-            Gdiplus::Pen penThumb(gdColor(cMagenta), 1.6f);
+            Gdiplus::Pen penThumb(Gdiplus::Color(255, 0, 0, 0), 2.2f);
             g.DrawPolygon(&penThumb, dPts, 4);
+
+            Gdiplus::SolidBrush brCenter(Gdiplus::Color(255, 224, 36, 195));
+            g.FillRectangle(&brCenter, (float)kx - 2.0f, cy - 2.0f, 4.0f, 4.0f);
         }
 
         // Column 2 Sliders
@@ -1353,26 +1510,39 @@ static void paint(HDC dc, RECT cr) {
             int i = kCol2Map[r];
             RECT rowRc = rcSliderRows[i];
             text(dc, kSliders[i].label, rowRc.left, rowRc.top + 2, fLabelBold, cTextPrimary);
-            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cMagenta, DT_RIGHT);
+            text(dc, sliderText(i), rowRc.right, rowRc.top + 2, fLabelBold, cYellow, DT_RIGHT);
             RECT t = rcSliderTracks[i];
-            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 5, 2, gdColor(cBorder));
+            fillChamferRect(g, t.left, t.top + 4, t.right - t.left, 6, 2, Gdiplus::Color(255, 10, 7, 20));
+            drawChamferRect(g, t.left, t.top + 4, t.right - t.left, 6, 2, Gdiplus::Color(255, 58, 32, 90), 1.0f);
             double f = std::clamp((sliderValue(i) - kSliders[i].lo) / (kSliders[i].hi - kSliders[i].lo), 0.0, 1.0);
             int kx = t.left + (int)(f * (t.right - t.left));
-            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 5, 2, gdColor(cMagenta));
+            if (kx > t.left) fillChamferRect(g, t.left, t.top + 4, kx - t.left, 6, 2, Gdiplus::Color(255, 224, 36, 195));
 
             // Atlus Diamond Thumb
-            float cy = (float)(t.top + 6);
-            float dSize = 7.0f;
+            float cy = (float)(t.top + 7);
+            float dSize = 8.0f;
+            Gdiplus::PointF dShadow[4] = {
+                Gdiplus::PointF((float)kx + 2.0f, cy - dSize + 2.0f),
+                Gdiplus::PointF((float)kx + dSize + 2.0f, cy + 2.0f),
+                Gdiplus::PointF((float)kx + 2.0f, cy + dSize + 2.0f),
+                Gdiplus::PointF((float)kx - dSize + 2.0f, cy + 2.0f)
+            };
+            Gdiplus::SolidBrush brShadow(Gdiplus::Color(255, 0, 0, 0));
+            g.FillPolygon(&brShadow, dShadow, 4);
+
             Gdiplus::PointF dPts[4] = {
                 Gdiplus::PointF((float)kx, cy - dSize),
                 Gdiplus::PointF((float)kx + dSize, cy),
                 Gdiplus::PointF((float)kx, cy + dSize),
                 Gdiplus::PointF((float)kx - dSize, cy)
             };
-            Gdiplus::SolidBrush brThumb(gdColor(cTextPrimary));
+            Gdiplus::SolidBrush brThumb(Gdiplus::Color(255, 255, 255, 255));
             g.FillPolygon(&brThumb, dPts, 4);
-            Gdiplus::Pen penThumb(gdColor(cMagenta), 1.6f);
+            Gdiplus::Pen penThumb(Gdiplus::Color(255, 0, 0, 0), 2.2f);
             g.DrawPolygon(&penThumb, dPts, 4);
+
+            Gdiplus::SolidBrush brCenter(Gdiplus::Color(255, 224, 36, 195));
+            g.FillRectangle(&brCenter, (float)kx - 2.0f, cy - 2.0f, 4.0f, 4.0f);
         }
     } else if (g_tab == 1) {
         // Tab 1: Trajectory & Vision
@@ -1397,7 +1567,7 @@ static void paint(HDC dc, RECT cr) {
 
         int live = g_liveBullet;
         if (live >= 0) {
-            snprintf(tb, sizeof tb, "Firing · Shot %d / 45", live + 1);
+            snprintf(tb, sizeof tb, "FIRING · SHOT %d OF 45", live + 1);
             pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 220, rcTelem.top + 122}, tb, RGB(45, 20, 60), cMagenta, cMagenta, true, fBtn);
         } else {
             pillButton(g, dc, RECT{rcTelem.left + 16, rcTelem.top + 90, rcTelem.left + 140, rcTelem.top + 122}, "STANDBY", cCard, cTextMuted, cBorder, true, fBtn);
@@ -1501,10 +1671,10 @@ static void paint(HDC dc, RECT cr) {
     }
 
     // 4. Footer Bar
-    int footerH = 30;
+    int footerH = 32;
     int footerY = cr.bottom - footerH;
     fillRect(dc, RECT{0, footerY, cr.right, cr.bottom}, cHeader);
-    HPEN penFoot = CreatePen(PS_SOLID, 1, cBorder);
+    HPEN penFoot = CreatePen(PS_SOLID, 2, cBorderHi);
     HGDIOBJ opFoot = SelectObject(dc, penFoot);
     MoveToEx(dc, 0, footerY, nullptr);
     LineTo(dc, cr.right, footerY);
@@ -1513,11 +1683,13 @@ static void paint(HDC dc, RECT cr) {
 
     // Status dot
     Gdiplus::SolidBrush brStat(gdColor(g_enabled ? cGreen : cOrange));
-    g.FillEllipse(&brStat, 24.0f, (float)(footerY + 11), 8.0f, 8.0f);
+    g.FillEllipse(&brStat, 24.0f, (float)(footerY + 11), 10.0f, 10.0f);
+    Gdiplus::Pen penStat(Gdiplus::Color(255, 0, 0, 0), 1.5f);
+    g.DrawEllipse(&penStat, 24.0f, (float)(footerY + 11), 10.0f, 10.0f);
     g.Flush();
-    text(dc, g_status, 38, footerY + 6, fSmall, cTextSecondary);
+    text(dc, g_status, 42, footerY + 8, fSmallBold, cTextPrimary);
 
-    text(dc, "Tabs: 1 · 2 · 3", cr.right - 24, footerY + 6, fSmall, cTextMuted, DT_RIGHT);
+    text(dc, "TABS: 1 · 2 · 3", cr.right - 24, footerY + 8, fSmallBold, cYellow, DT_RIGHT);
 }
 
 // ============================================================ cross-validation window (Apple macOS Dark Mode styling)
@@ -1769,7 +1941,7 @@ static void openCalibWin() {
     if (posY < workArea.top) posY = workArea.top + 10;
     if (posY + wh > workArea.bottom) posY = max(workArea.top, workArea.bottom - wh - 10);
 
-    g_cw.hwnd = CreateWindowW(L"DFCalibWnd", L"DF-RECOIL // CALIBRATION", st,
+    g_cw.hwnd = CreateWindowW(L"DFCalibWnd", L"DF-RECOIL — CALIBRATION", st,
                               posX, posY, ww, wh, g_hwnd, nullptr, GetModuleHandle(nullptr), nullptr);
     BOOL calibDark = TRUE;
     DwmSetWindowAttribute(g_cw.hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &calibDark, sizeof(calibDark));
@@ -2387,16 +2559,29 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
         return 0;
     }
 
-    fTitle = CreateFontW(19, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fSection = CreateFontW(15, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    // Global GDI+ Fonts
+    Gdiplus::FontFamily ffImpact(L"Impact");
+    Gdiplus::FontFamily ffSegoe(L"Segoe UI");
+    Gdiplus::FontFamily ffConsolas(L"Consolas");
+
+    g_pFontImpactHuge   = new Gdiplus::Font(&ffImpact, 32.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+    g_pFontImpactHeader = new Gdiplus::Font(&ffImpact, 20.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    g_pFontImpactBtn    = new Gdiplus::Font(&ffImpact, 14.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    g_pFontImpactTag    = new Gdiplus::Font(&ffImpact, 12.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    g_pFontSegoeBold    = new Gdiplus::Font(&ffSegoe, 13.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+    g_pFontSegoeRegular = new Gdiplus::Font(&ffSegoe, 13.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    g_pFontConsolas     = new Gdiplus::Font(&ffConsolas, 12.0f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+
+    fTitle = CreateFontW(20, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Impact");
+    fSection = CreateFontW(15, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
     fLabel = CreateFontW(13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fLabelBold = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fBig = CreateFontW(17, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fLabelBold = CreateFontW(13, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fBig = CreateFontW(17, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Impact");
     fSmall = CreateFontW(12, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fSmallBold = CreateFontW(12, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fBtn = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fTab = CreateFontW(13, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    fTabActive = CreateFontW(13, 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fSmallBold = CreateFontW(12, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    fBtn = CreateFontW(13, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Impact");
+    fTab = CreateFontW(13, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Impact");
+    fTabActive = CreateFontW(13, 0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Impact");
     g_brEdit = CreateSolidBrush(cCardInner);
 
     WNDCLASSW wc{}; wc.lpfnWndProc = wndProc; wc.hInstance = hi; wc.lpszClassName = L"DFRecoilWnd";
@@ -2408,10 +2593,10 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
     int workW = (workArea.right > workArea.left) ? (workArea.right - workArea.left) : 1920;
     int workH = (workArea.bottom > workArea.top) ? (workArea.bottom - workArea.top) : 1080;
 
-    int clientW = 1080;
-    int clientH = 620;
-    if (workH < 700) clientH = max(560, workH - 65);
-    if (workW < 1120) clientW = max(940, workW - 30);
+    int clientW = 1140;
+    int clientH = 700;
+    if (workH < 760) clientH = max(600, workH - 65);
+    if (workW < 1200) clientW = max(1000, workW - 40);
 
     DWORD st = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
     RECT r{0, 0, clientW, clientH};
@@ -2424,7 +2609,7 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
 
     updateLayout(clientW, clientH);
 
-    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"DF-RECOIL // YONAH", st,
+    g_hwnd = CreateWindowW(L"DFRecoilWnd", L"DF-RECOIL — YONAH", st,
                            posX, posY, winW, winH, nullptr, nullptr, hi, nullptr);
     BOOL darkMode = TRUE;
     DwmSetWindowAttribute(g_hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &darkMode, sizeof(darkMode));
@@ -2437,6 +2622,20 @@ int WINAPI WinMain(HINSTANCE hi, HINSTANCE, LPSTR cmd, int) {
     g_running = false; WaitForSingleObject(th, 1000);
     CloseHandle(th);
     DeleteCriticalSection(&g_cs);
+    delete g_pFontImpactHuge;
+    delete g_pFontImpactHeader;
+    delete g_pFontImpactBtn;
+    delete g_pFontImpactTag;
+    delete g_pFontSegoeBold;
+    delete g_pFontSegoeRegular;
+    delete g_pFontConsolas;
+    g_pFontImpactHuge = nullptr;
+    g_pFontImpactHeader = nullptr;
+    g_pFontImpactBtn = nullptr;
+    g_pFontImpactTag = nullptr;
+    g_pFontSegoeBold = nullptr;
+    g_pFontSegoeRegular = nullptr;
+    g_pFontConsolas = nullptr;
     DeleteObject(fTitle);
     DeleteObject(fSection);
     DeleteObject(fLabel);
